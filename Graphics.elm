@@ -5,23 +5,27 @@ import Models.Point exposing (Point)
 import Html exposing (Html)
 import Html.Attributes exposing (style)
 
-import Svg exposing (Svg, svg, rect)
-import Svg.Attributes exposing (viewBox, x, y, fontSize, textAnchor, fill, stroke, strokeWidth, width, height)
+import Svg exposing (Svg, svg, rect, g)
+import Svg.Attributes exposing (viewBox, x, y, fontSize, textAnchor, fill, stroke, strokeWidth, width, height, preserveAspectRatio, transform)
 import Svg.Events
 
-viewbox (width,height) (vWidth, vHeight) view =
+viewbox (width,height) (vWidth, vHeight) scale view =
   let
     vDim =
       "0 0 " ++ (toString vWidth) ++ " " ++ (toString vHeight)
 
     props =
       [ viewBox vDim
-      , style [("height", (toString height))
-              ,("width", (toString width))
+      , style [("height", (toString (height)))
+              ,("width", (toString (width)))
               ]
+      , preserveAspectRatio "xMinYMin"
+      --, transform "rotate(20.0)"
       ]
+    wrapView =
+      g [ transform ("scale(" ++ toString scale ++ ")") ] view
   in
-    svg props view
+    svg props [ wrapView ] --view
 
 rect : Point -> String -> Svg msg
 rect (x',y') color =

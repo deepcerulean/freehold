@@ -1,4 +1,4 @@
-module Models.Terrain exposing (Terrain, dirt, water, rock, color, random)
+module Models.Terrain exposing (Terrain, random, dirt, water, rock, color, hoverColor)
 
 import Algorithms.Champ exposing (champernowne)
 import Models.Point exposing (Point)
@@ -32,6 +32,18 @@ color terrain =
 
     Rock ->
       "rgb(160,160,160)"
+
+hoverColor : Terrain -> String
+hoverColor terrain =
+  case terrain of
+    Dirt ->
+      "rgb(160,240,160)"
+
+    Water ->
+      "rgb(160,160,240)"
+
+    Rock ->
+      "rgb(240,240,240)"
 
 pick : Int -> Terrain
 pick n =

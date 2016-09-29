@@ -7,29 +7,26 @@ import String
 import Dict
 import Html
 
-view model =
-  let
-    people =
-      model.people
-
-    message =
-      model.name
-      ++ ": "
-      ++ ((List.map .name people) |> String.join ", ")
-  in
-    terrainView model
-    --++
-    --[
-    --  Svg.text' [ x "50"
-    --      , y "50"
-    --      , fill "blue"
-    --      , fontSize "1pt"
-    --      , textAnchor "middle"
-    --      ] [ Html.text message ]
-    --]
+view hoverAt model =
+  case hoverAt of
+    Nothing ->
+      terrainView model
+    Just pos ->
+      terrainView' pos model
 
 terrainView model =
   model.terrain
   |> Dict.toList
   |> List.map (\(pt,terrain) ->
-    terrain |> Views.Terrain.view pt)
+    terrain |> Views.Terrain.view pt
+  )
+
+terrainView' pos model =
+  model.terrain
+  |> Dict.toList
+  |> List.map (\(pt,terrain) ->
+    if pos == pt then
+      terrain |> Views.Terrain.hover pt
+    else
+      terrain |> Views.Terrain.view pt
+  )
