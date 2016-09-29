@@ -9,7 +9,8 @@ import Svg exposing (Svg, svg, rect, g)
 import Svg.Attributes exposing (viewBox, x, y, fontSize, textAnchor, fill, stroke, strokeWidth, width, height, preserveAspectRatio, transform)
 import Svg.Events
 
-viewbox (width,height) (vWidth, vHeight) scale view =
+viewbox : (Int,Int) -> (Int,Int) -> Float -> (Int,Int) -> List (Svg.Svg a) -> Html a
+viewbox (width,height) (vWidth, vHeight) scale (offsetX, offsetY) view =
   let
     vDim =
       "0 0 " ++ (toString vWidth) ++ " " ++ (toString vHeight)
@@ -23,7 +24,7 @@ viewbox (width,height) (vWidth, vHeight) scale view =
       --, transform "rotate(20.0)"
       ]
     wrapView =
-      g [ transform ("scale(" ++ toString scale ++ ")") ] view
+      g [ transform ("scale(" ++ toString scale ++ ") translate(" ++toString offsetX++ ", " ++ toString offsetY ++ ")") ] view
   in
     svg props [ wrapView ] --view
 

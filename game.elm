@@ -1,19 +1,22 @@
-import Algorithms.Conway --exposing (evolve)
-import Models.World exposing (World)
-import Models.Terrain exposing (water, dirt)
-import Views.World
+import Algorithms.Conway
 import Graphics exposing (viewbox)
+import Models.Direction exposing (Direction(..))
+import Models.Point exposing (Point)
+import Models.Terrain exposing (water, dirt)
+import Models.World exposing (World)
 import Support.Wheel exposing (Delta)
+import Views.World
 
-import Html exposing (Html)
-import Html.App as App
-
-import String
-import Time exposing (Time, millisecond)
 import Task
+import String
+import Char
+import Random
+import Time exposing (Time, millisecond)
 import Window
 import Mouse
-import Random
+import Keyboard exposing (KeyCode)
+import Html exposing (Html)
+import Html.App as App
 
 -- type
 type Msg = ResizeWindow (Int, Int)
@@ -21,6 +24,7 @@ type Msg = ResizeWindow (Int, Int)
          | NewWorld World
          | MoveMouse Mouse.Position
          | Zoom Delta
+         | Keypress KeyCode
          | NoOp
 
 type alias Game = { world : World
@@ -28,6 +32,7 @@ type alias Game = { world : World
                   , setup : Bool
                   , hover : Maybe (Int,Int)
                   , scale : Float
+                  , offset : Point
                   }
 
 -- MAIN
@@ -44,10 +49,11 @@ init : (Game, Cmd Msg)
 init =
   (
     { world = Models.World.empty
-    , dims = (-1,-1)
+    , dims = (0,0) -- will be overridden with Window.size
     , setup = False
     , hover = Nothing
     , scale = 1.0
+    , offset = (0,0)
     },
     Task.perform (\_ -> NoOp) sizeToMsg Window.size
   )
@@ -71,9 +77,29 @@ update message model =
     Zoom delta ->
       (model |> zoom delta, Cmd.none)
 
+    Keypress key ->
+      (model |> press key, Cmd.none)
+
     NoOp ->
       (model, Cmd.none)
 
+press : KeyCode -> Game -> Game
+press key model =
+  let char = Char.fromCode key |> Debug.log "key" in
+  model |> parse char
+
+parse : Char -> Game -> Game
+parse char model =
+  case char of
+    'h' -> model |> pan East
+    'l' -> model |> pan West
+    'j' -> model |> pan North
+    'k' -> model |> pan South
+    _  -> model
+
+pan : Direction -> Game -> Game
+pan dir model =
+  { model | offset = model.offset |> Models.Point.slide dir }
 
 zoom : Delta -> Game -> Game
 zoom delta model =
@@ -109,16 +135,20 @@ screenToCoord pos model =
     (x,y) =
       (toFloat (pos.x), toFloat (pos.y)) -- - 10), toFloat (pos.y - 10))
 
-    scale =
+    scale' =
       (if (toFloat vHeight / toFloat vWidth) < aspectRatio then
         (toFloat height / toFloat vHeight)
-        --|> Debug.log "scale"
       else
         (toFloat width / toFloat vWidth)
-      ) / ( model.scale )
-        --|> Debug.log "scale"
+      )
+
+    scale =
+      scale' / ( model.scale )
+
+    (offsetX, offsetY) =
+      model.offset
   in
-      (round ((x * scale) - 0.5), round ((y * scale) - 0.5))
+      (round ((x * scale) - 0.5) - offsetX, round ((y * scale) - 0.5) - offsetY)
       |> Debug.log "pos"
 
 generate : (Int,Int) -> Game -> (Game, Cmd Msg)
@@ -134,6 +164,7 @@ subscriptions model =
             , Time.every 100 Tick
             , Mouse.moves MoveMouse
             , Support.Wheel.deltas Zoom
+            , Keyboard.presses Keypress
             ]
 
 sizeToMsg : Window.Size -> Msg
@@ -146,4 +177,7 @@ view model =
     worldView =
       Views.World.view model.hover model.world
   in
-    Graphics.viewbox model.dims model.world.dimensions model.scale worldView
+    Graphics.viewbox model.dims model.world.dimensions model.scale model.offset worldView
+
+--frame model =
+

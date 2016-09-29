@@ -1,4 +1,4 @@
-module Models.Point exposing (Point, grid, adjacent)
+module Models.Point exposing (Point, grid, adjacent, slide)
 
 import Models.Direction exposing (Direction(..))
 
