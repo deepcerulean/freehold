@@ -1,21 +1,27 @@
+import Algorithms.Conway --exposing (evolve)
 import Models.World exposing (World)
+import Models.Terrain exposing (water, dirt)
+import Views.World
+import Graphics exposing (viewbox)
 
 import Html exposing (Html)
 import Html.App as App
-import Html.Attributes exposing (style)
-import Svg exposing (svg, rect, text')
-import Svg.Attributes exposing (viewBox, width, height, x, y, fontSize, textAnchor, fill)
-import Svg.Events
-import Window
+
+import String
+import Time exposing (Time, millisecond)
 import Task
+import Window
+import Random
 
 -- type
 type Msg = ResizeWindow (Int, Int)
+         | Tick Time
+         | NewWorld World
          | NoOp
 
 type alias Game = { world : World
-                  , width : Int
-                  , height : Int
+                  , dims : (Int, Int)
+                  , setup : Bool
                   }
 
 -- MAIN
@@ -31,30 +37,50 @@ main =
 init : (Game, Cmd Msg)
 init =
   (
-    { world = Models.World.init
-    , width = 100
-    , height = 100
+    { world = Models.World.empty
+    , dims = (-1,-1)
+    , setup = False
     },
-    --Cmd.none
     Task.perform (\_ -> NoOp) sizeToMsg Window.size
   )
-
 
 -- update
 update : Msg -> Game -> (Game, Cmd Msg)
 update message model =
   case message of
-    ResizeWindow (width', height') ->
-      ({ model | width = width', height = height' }, Cmd.none)
+    ResizeWindow dims ->
+      (model |> resize dims, Cmd.none)
+
+    NewWorld world' ->
+      ({model | world = world' |> Models.World.evolve 4}, Cmd.none)
+
     NoOp ->
       (model, Cmd.none)
+
+    Tick _ ->
+      model |> tick
+
+resize : (Int,Int) -> Game -> Game
+resize dims' model =
+  { model | dims = dims' }
+
+tick : Game -> (Game, Cmd Msg)
+tick model =
+  model
+  |> generate
+
+generate : Game -> (Game, Cmd Msg)
+generate model =
+  if model.setup then (model, Cmd.none) else
+    ({ model | setup = True }, Random.generate NewWorld (Models.World.generate (80,60)))
+    |> Debug.log "SETUP"
 
 -- subs
 subscriptions : Game -> Sub Msg
 subscriptions model =
-  Sub.batch [
-    Window.resizes sizeToMsg
-  ]
+  Sub.batch [ Window.resizes sizeToMsg
+            , Time.every 100 Tick
+            ]
 
 sizeToMsg : Window.Size -> Msg
 sizeToMsg size =
@@ -63,16 +89,7 @@ sizeToMsg size =
 -- view
 view model =
   let
-    message = "HELLO WORLD"
+    worldView =
+      Views.World.view model.world
   in
-    Html.div [ style [("background-color", "none")] ]
-    [
-      svg [ viewBox "0 0 100 100", style [("height", (toString model.height)),("width", (toString model.width))] ] [
-          text' [ x "50"
-                , y "50"
-                , fill "blue"
-                , fontSize "1pt"
-                , textAnchor "middle"
-                ] [ Html.text message ]
-        ]
-    ]
+    Graphics.viewbox model.dims model.world.dimensions worldView
