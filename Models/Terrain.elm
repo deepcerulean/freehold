@@ -1,6 +1,5 @@
 module Models.Terrain exposing (Terrain, random, dirt, water, rock, color, hoverColor)
 
-import Algorithms.Champ exposing (champernowne)
 import Models.Point exposing (Point)
 
 import Random exposing (Generator)

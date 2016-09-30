@@ -32,7 +32,7 @@ type alias Game = { world : World
                   , setup : Bool
                   , hover : Maybe (Int,Int)
                   , scale : Float
-                  , offset : Point
+                  , offset : (Float,Float)
                   }
 
 -- MAIN
@@ -53,7 +53,7 @@ init =
     , setup = False
     , hover = Nothing
     , scale = 1.0
-    , offset = (0,0)
+    , offset = (0.0,0.0)
     },
     Task.perform (\_ -> NoOp) sizeToMsg Window.size
   )
@@ -99,12 +99,90 @@ parse char model =
 
 pan : Direction -> Game -> Game
 pan dir model =
-  { model | offset = model.offset |> Models.Point.slide dir }
+  let
+    factor =
+      2.2 / model.scale
+
+    (ox,oy) =
+      model.offset
+
+    (dx,dy) =
+      Models.Point.delta dir
+  in
+    { model | offset = (ox + factor * (toFloat dx) , oy + factor * (toFloat dy))
+    }
 
 zoom : Delta -> Game -> Game
 zoom delta model =
-  let dy = 0.001 * (toFloat delta.y) in
-  { model | scale = max 1.0 (model.scale + dy) }
+  let
+    dy =
+      0.005 * (toFloat delta.y)
+
+    center =
+      model |> findCenter
+  in
+    { model | scale = max 1.0 (model.scale - dy) }
+    |> centerAt center
+
+findCenter : Game -> (Int,Int)
+findCenter model =
+  let
+    scale =
+      model
+      |> scaleFactor
+      |> Debug.log "scale"
+
+    cellSize =
+      (1/scale)
+      |> Debug.log "cellsize"
+
+    (vWidth,vHeight) =
+      model.dims
+        |> Debug.log "view dims"
+
+    (ox,oy) =
+      model.offset
+        |> Debug.log "offset"
+
+    (scx,scy) =
+      ( toFloat vWidth / 2, toFloat vHeight / 2)
+      |> Debug.log "screen center"
+
+    (rcx,rcy) =
+      ( scx - ((0.5 + ox) * cellSize), scy - ((0.5 + oy) * cellSize))
+      |> Debug.log "real center"
+
+    (pcx,pcy) =
+      (rcx / cellSize, rcy / cellSize)
+      |> Debug.log "coord center"
+  in
+    (round pcx, round pcy)
+    --(20,10)
+
+centerAt : (Int,Int) -> Game -> Game
+centerAt (x,y) model =
+  let
+    (width,height) =
+      model.dims
+
+    scale =
+      model |> scaleFactor
+
+    cellSize =
+      (1/scale)
+
+    w = -- px
+      (toFloat width) / cellSize -- + 0.5
+
+    h = -- px
+      (toFloat height) / cellSize -- + 0.5
+
+    offset' =
+      (-(toFloat x) + w/2 - 0.5, -(toFloat y) + h/2 - 0.5)
+      --((x' * scale) - 0.5, (y' * scale) - 0.5)
+      --|> Debug.log "offset"
+  in
+    { model | offset = offset' }
 
 resize : (Int,Int) -> Game -> Game
 resize dims' model =
@@ -120,8 +198,8 @@ mouseAt pos model =
   let pos' = model |> screenToCoord pos in
       { model | hover = Just pos' }
 
-screenToCoord : Mouse.Position -> Game -> (Int,Int)
-screenToCoord pos model =
+scaleFactor : Game -> Float
+scaleFactor model =
   let
     aspectRatio =
       (toFloat height) / (toFloat width)
@@ -132,24 +210,28 @@ screenToCoord pos model =
     (width,height) =
       model.world.dimensions
 
-    (x,y) =
-      (toFloat (pos.x), toFloat (pos.y)) -- - 10), toFloat (pos.y - 10))
-
     scale' =
       (if (toFloat vHeight / toFloat vWidth) < aspectRatio then
         (toFloat height / toFloat vHeight)
       else
         (toFloat width / toFloat vWidth)
       )
+  in
+    scale' / ( model.scale )
+
+screenToCoord : Mouse.Position -> Game -> (Int,Int)
+screenToCoord pos model =
+  let
+    (x,y) =
+      (toFloat (pos.x), toFloat (pos.y))
 
     scale =
-      scale' / ( model.scale )
+      model |> scaleFactor
 
-    (offsetX, offsetY) =
+    (ox, oy) =
       model.offset
   in
-      (round ((x * scale) - 0.5) - offsetX, round ((y * scale) - 0.5) - offsetY)
-      |> Debug.log "pos"
+      (round (((x) * scale) - (0.5 + ox)), round (((y) * scale) - (0.5 + oy)))
 
 generate : (Int,Int) -> Game -> (Game, Cmd Msg)
 generate (w,h) model =

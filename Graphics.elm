@@ -9,7 +9,7 @@ import Svg exposing (Svg, svg, rect, g)
 import Svg.Attributes exposing (viewBox, x, y, fontSize, textAnchor, fill, stroke, strokeWidth, width, height, preserveAspectRatio, transform)
 import Svg.Events
 
-viewbox : (Int,Int) -> (Int,Int) -> Float -> (Int,Int) -> List (Svg.Svg a) -> Html a
+viewbox : (Int,Int) -> (Int,Int) -> Float -> (Float,Float) -> List (Svg.Svg a) -> Html a
 viewbox (width,height) (vWidth, vHeight) scale (offsetX, offsetY) view =
   let
     vDim =
@@ -21,12 +21,11 @@ viewbox (width,height) (vWidth, vHeight) scale (offsetX, offsetY) view =
               ,("width", (toString (width)))
               ]
       , preserveAspectRatio "xMinYMin"
-      --, transform "rotate(20.0)"
       ]
     wrapView =
       g [ transform ("scale(" ++ toString scale ++ ") translate(" ++toString offsetX++ ", " ++ toString offsetY ++ ")") ] view
   in
-    svg props [ wrapView ] --view
+    svg props [ wrapView ]
 
 rect : Point -> String -> Svg msg
 rect (x',y') color =
