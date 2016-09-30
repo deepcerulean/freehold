@@ -1,4 +1,4 @@
-module Viewport exposing (Viewport, init, pan, zoom, resize, find)
+module Viewport exposing (Viewport, init, pan, zoom, resize, find, animate)
 
 import Models.Point exposing (Point)
 import Models.Direction exposing (Direction)
@@ -8,41 +8,18 @@ type alias Viewport = { dimensions : ( Int, Int )
                       , scale : Float
                       , offset : (Float, Float)
                       , worldDims : ( Int, Int )
-                      --, panVelocity : (Float,Float)
-                      --, zoomVelocity : Float
+                      , panVelocity : (Float,Float)
+                      , zoomVelocity : Float
                       }
 
 init : (Int,Int) -> Viewport
-init worldDims' = { dimensions = (800,600) -- worldDims'
+init worldDims' = { dimensions = (800,600)
                   , scale = 1.0
                   , offset = (0.0,0.0)
                   , worldDims = worldDims'
-                  --, panVelocity = (0.0,0.0)
-                  --, zoomVelocity = 0.0
+                  , panVelocity = (0,0)
+                  , zoomVelocity = 0
                   }
-
---friction = 0.1
---
---sign = \n -> if n > 0 then 1 else if n < 0 then -1 else 0
---
---animate : Viewport -> Viewport
---animate model =
---  let
---    (vx,vy) =
---      model.panVelocity
---
---    (ox,oy) =
---      model.offset
---
---    vx' =
---      max 0 vx - (friction * sign vy)
---
---    vy' =
---      max 0 vy - (friction * sign vy)
---  in
---  { model | offset = (ox+vx,oy+vy)
---          , panVelocity = (vx', vy')
---          }
 
 find : Mouse.Position -> Viewport -> (Int,Int)
 find pos model =
@@ -58,19 +35,33 @@ find pos model =
   in
       (round (((x) * scale) - (0.5 + ox)), round (((y) * scale) - (0.5 + oy)))
 
+maxPanSpeed = 1.0
+
 pan : Float -> Direction -> Viewport -> Viewport
 pan factor' dir model =
   let
     factor =
-      factor' / model.scale
+      factor' -- / model.scale
 
-    (ox,oy) =
-      model.offset
+    (vx,vy) =
+      model.panVelocity
 
     (dx,dy) =
       Models.Point.delta dir
+
+    vx' =
+      vx + factor * (toFloat dx)
+
+    vy' =
+      vy + factor * (toFloat dy)
+
+    vx'' =
+      if abs vx' > maxPanSpeed then maxPanSpeed * sign vx' else vx'
+
+    vy'' =
+      if abs vy' > maxPanSpeed then maxPanSpeed * sign vy' else vy'
   in
-    { model | offset = (ox + factor * (toFloat dx) , oy + factor * (toFloat dy))
+    { model | panVelocity = (vx'', vy'')
     }
 
 zoom : Int -> Viewport -> Viewport
@@ -86,8 +77,12 @@ zoom delta model =
       model |> findCenter
   in
     model
+      |> freezeScroll
       |> scaleTo scale'
       |> centerAt center
+
+freezeScroll model =
+  { model | panVelocity = (0,0) }
 
 scaleTo scale' model =
   { model | scale = scale' }
@@ -122,18 +117,15 @@ findCenter model =
       (rcx / cellSize, rcy / cellSize)
   in
     (round pcx, round pcy)
-    |> Debug.log "CENTER"
 
 centerAt : (Int,Int) -> Viewport -> Viewport
 centerAt (x,y) model =
   let
     (width,height) =
       model.dimensions
-      |> Debug.log "dims"
 
     scale =
       model |> scaleFactor
-      |> Debug.log "scale"
 
     cellSize =
       (1/scale)
@@ -172,3 +164,45 @@ scaleFactor model =
       )
   in
     scale' / ( model.scale )
+
+
+
+-- init : (Int,Int) -> Viewport
+-- init worldDims' = { dimensions = (800,600)
+--                   , scale = 1.0
+--                   , offset = (0.0,0.0)
+--                   , worldDims = worldDims'
+--                   , panVelocity = (0,0)
+--                   , zoomVelocity = 0
+--                   }
+
+friction = 0.06
+sign x = if x < 0 then -1 else if x > 0 then 1 else 0
+
+animate : Viewport -> Viewport
+animate model =
+  let
+    {offset,panVelocity} =
+      model
+
+    (ox,oy) =
+      offset
+
+    (vx,vy) =
+      panVelocity
+
+    vx' =
+      vx - (friction * sign vx)
+
+    vy' =
+      vy - (friction * sign vy)
+
+    vx'' =
+      if sign vx' == sign vx then vx' else 0
+
+    vy'' =
+      if sign vy' == sign vy then vy' else 0
+  in
+    { model | offset = (ox+vx'',oy+vy'')
+            , panVelocity = (vx'',vy'')
+    }

@@ -11,7 +11,7 @@ import Svg.Attributes exposing (viewBox, x, y, fontSize, textAnchor, fill, strok
 import Svg.Events
 
 view : Viewport -> List (Svg.Svg a) -> Html a
-view {worldDims,dimensions,scale,offset} view =
+view {worldDims,dimensions,scale,offset,panVelocity,zoomVelocity} view =
   let
     (width,height)  =
       worldDims

@@ -99,7 +99,7 @@ parse char model =
 
 pan : Direction -> Game -> Game
 pan dir model =
-  { model | viewport = model.viewport |> Viewport.pan 1.3 dir }
+  { model | viewport = model.viewport |> Viewport.pan 0.3 dir }
 
 zoom : Delta -> Game -> Game
 zoom delta model =
@@ -111,9 +111,8 @@ resize dims model =
 
 tick : Game -> (Game, Cmd Msg)
 tick model =
-  model
+  { model | viewport = model.viewport |> Viewport.animate }
   |> generate model.world.dimensions
-  --|> animate
 
 mouseAt : Mouse.Position -> Game -> Game
 mouseAt pos model =
@@ -124,7 +123,6 @@ generate : (Int,Int) -> Game -> (Game, Cmd Msg)
 generate (w,h) model =
   if model.setup then (model, Cmd.none) else
     ({ model | setup = True }, Random.generate NewWorld (Models.World.generate (w,h)))
-    |> Debug.log "SETUP"
 
 -- subs
 subscriptions : Game -> Sub Msg
