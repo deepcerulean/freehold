@@ -1,6 +1,7 @@
-module Graphics exposing (viewbox, rect)
+module Graphics exposing (rect, view)
 
 import Models.Point exposing (Point)
+import Viewport exposing (Viewport)
 
 import Html exposing (Html)
 import Html.Attributes exposing (style)
@@ -9,19 +10,29 @@ import Svg exposing (Svg, svg, rect, g)
 import Svg.Attributes exposing (viewBox, x, y, fontSize, textAnchor, fill, stroke, strokeWidth, width, height, preserveAspectRatio, transform)
 import Svg.Events
 
-viewbox : (Int,Int) -> (Int,Int) -> Float -> (Float,Float) -> List (Svg.Svg a) -> Html a
-viewbox (width,height) (vWidth, vHeight) scale (offsetX, offsetY) view =
+view : Viewport -> List (Svg.Svg a) -> Html a
+view {worldDims,dimensions,scale,offset} view =
   let
+    (width,height)  =
+      worldDims
+
+    (vWidth, vHeight) =
+       dimensions
+
     vDim =
-      "0 0 " ++ (toString vWidth) ++ " " ++ (toString vHeight)
+      "0 0 " ++ (toString width) ++ " " ++ (toString height)
 
     props =
       [ viewBox vDim
-      , style [("height", (toString (height)))
-              ,("width", (toString (width)))
+      , style [("height", (toString (vHeight)))
+              ,("width", (toString (vWidth)))
               ]
       , preserveAspectRatio "xMinYMin"
       ]
+
+    (offsetX, offsetY) =
+      offset
+
     wrapView =
       g [ transform ("scale(" ++ toString scale ++ ") translate(" ++toString offsetX++ ", " ++ toString offsetY ++ ")") ] view
   in

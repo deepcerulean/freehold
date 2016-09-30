@@ -54,13 +54,13 @@ applyAt model (alive,dead) pt (add, remove) =
       model |> matches pt alive
 
     starvation =
-      7
+      6
 
     loneliness =
-      2
+      1
 
     birth =
-      [3..6]
+      [2..6]
 
   in
     if living then

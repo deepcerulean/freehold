@@ -17,9 +17,8 @@ type alias World = { name : String
                    , dimensions : (Int, Int)
                    }
 
-empty : World
-empty =
-  let dims = (0,0) in
+empty : (Int,Int) -> World
+empty dims =
   { name = "Nowhere"
   , people = []
   , terrain = Models.Cartogram.empty dims

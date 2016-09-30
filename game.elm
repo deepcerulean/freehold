@@ -1,11 +1,12 @@
 import Algorithms.Conway
-import Graphics exposing (viewbox)
+import Graphics
 import Models.Direction exposing (Direction(..))
 import Models.Point exposing (Point)
 import Models.Terrain exposing (water, dirt)
 import Models.World exposing (World)
 import Support.Wheel exposing (Delta)
 import Views.World
+import Viewport exposing (Viewport)
 
 import Task
 import String
@@ -18,6 +19,9 @@ import Keyboard exposing (KeyCode)
 import Html exposing (Html)
 import Html.App as App
 
+-- global config
+worldSize = (120,80)
+
 -- type
 type Msg = ResizeWindow (Int, Int)
          | Tick Time
@@ -28,32 +32,28 @@ type Msg = ResizeWindow (Int, Int)
          | NoOp
 
 type alias Game = { world : World
-                  , dims : (Int, Int)
                   , setup : Bool
                   , hover : Maybe (Int,Int)
-                  , scale : Float
-                  , offset : (Float,Float)
+                  , viewport : Viewport
                   }
 
 -- MAIN
 main =
   App.program
-  { init = init
+  { init = init worldSize
   , view = view
   , update = update
   , subscriptions = subscriptions
   }
 
 -- init
-init : (Game, Cmd Msg)
-init =
+init : (Int,Int) -> (Game, Cmd Msg)
+init dims =
   (
-    { world = Models.World.empty
-    , dims = (0,0) -- will be overridden with Window.size
+    { world = Models.World.empty dims
     , setup = False
     , hover = Nothing
-    , scale = 1.0
-    , offset = (0.0,0.0)
+    , viewport = Viewport.init dims
     },
     Task.perform (\_ -> NoOp) sizeToMsg Window.size
   )
@@ -85,7 +85,7 @@ update message model =
 
 press : KeyCode -> Game -> Game
 press key model =
-  let char = Char.fromCode key |> Debug.log "key" in
+  let char = Char.fromCode key in
   model |> parse char
 
 parse : Char -> Game -> Game
@@ -99,139 +99,26 @@ parse char model =
 
 pan : Direction -> Game -> Game
 pan dir model =
-  let
-    factor =
-      2.2 / model.scale
-
-    (ox,oy) =
-      model.offset
-
-    (dx,dy) =
-      Models.Point.delta dir
-  in
-    { model | offset = (ox + factor * (toFloat dx) , oy + factor * (toFloat dy))
-    }
+  { model | viewport = model.viewport |> Viewport.pan 1.3 dir }
 
 zoom : Delta -> Game -> Game
 zoom delta model =
-  let
-    dy =
-      0.005 * (toFloat delta.y)
-
-    center =
-      model |> findCenter
-  in
-    { model | scale = max 1.0 (model.scale - dy) }
-    |> centerAt center
-
-findCenter : Game -> (Int,Int)
-findCenter model =
-  let
-    scale =
-      model
-      |> scaleFactor
-      |> Debug.log "scale"
-
-    cellSize =
-      (1/scale)
-      |> Debug.log "cellsize"
-
-    (vWidth,vHeight) =
-      model.dims
-        |> Debug.log "view dims"
-
-    (ox,oy) =
-      model.offset
-        |> Debug.log "offset"
-
-    (scx,scy) =
-      ( toFloat vWidth / 2, toFloat vHeight / 2)
-      |> Debug.log "screen center"
-
-    (rcx,rcy) =
-      ( scx - ((0.5 + ox) * cellSize), scy - ((0.5 + oy) * cellSize))
-      |> Debug.log "real center"
-
-    (pcx,pcy) =
-      (rcx / cellSize, rcy / cellSize)
-      |> Debug.log "coord center"
-  in
-    (round pcx, round pcy)
-    --(20,10)
-
-centerAt : (Int,Int) -> Game -> Game
-centerAt (x,y) model =
-  let
-    (width,height) =
-      model.dims
-
-    scale =
-      model |> scaleFactor
-
-    cellSize =
-      (1/scale)
-
-    w = -- px
-      (toFloat width) / cellSize -- + 0.5
-
-    h = -- px
-      (toFloat height) / cellSize -- + 0.5
-
-    offset' =
-      (-(toFloat x) + w/2 - 0.5, -(toFloat y) + h/2 - 0.5)
-      --((x' * scale) - 0.5, (y' * scale) - 0.5)
-      --|> Debug.log "offset"
-  in
-    { model | offset = offset' }
+  { model | viewport = model.viewport |> Viewport.zoom delta.y }
 
 resize : (Int,Int) -> Game -> Game
-resize dims' model =
-  { model | dims = dims' }
+resize dims model =
+  { model | viewport = model.viewport |> Viewport.resize dims }
 
 tick : Game -> (Game, Cmd Msg)
 tick model =
   model
-  |> generate (30,20)
+  |> generate model.world.dimensions
+  --|> animate
 
 mouseAt : Mouse.Position -> Game -> Game
 mouseAt pos model =
-  let pos' = model |> screenToCoord pos in
+  let pos' = model.viewport |> Viewport.find pos in
       { model | hover = Just pos' }
-
-scaleFactor : Game -> Float
-scaleFactor model =
-  let
-    aspectRatio =
-      (toFloat height) / (toFloat width)
-
-    (vWidth,vHeight) =
-      model.dims
-
-    (width,height) =
-      model.world.dimensions
-
-    scale' =
-      (if (toFloat vHeight / toFloat vWidth) < aspectRatio then
-        (toFloat height / toFloat vHeight)
-      else
-        (toFloat width / toFloat vWidth)
-      )
-  in
-    scale' / ( model.scale )
-
-screenToCoord : Mouse.Position -> Game -> (Int,Int)
-screenToCoord pos model =
-  let
-    (x,y) =
-      (toFloat (pos.x), toFloat (pos.y))
-
-    scale =
-      model |> scaleFactor
-
-    (ox, oy) =
-      model.offset
-  in
-      (round (((x) * scale) - (0.5 + ox)), round (((y) * scale) - (0.5 + oy)))
 
 generate : (Int,Int) -> Game -> (Game, Cmd Msg)
 generate (w,h) model =
@@ -258,8 +145,7 @@ view model =
   let
     worldView =
       Views.World.view model.hover model.world
+
+    offset = model.viewport.offset
   in
-    Graphics.viewbox model.dims model.world.dimensions model.scale model.offset worldView
-
---frame model =
-
+    Graphics.view model.viewport worldView

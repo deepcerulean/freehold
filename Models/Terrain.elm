@@ -46,13 +46,13 @@ hoverColor terrain =
 
 pick : Int -> Terrain
 pick n =
-  if n == 0 then
+  if n < 6 then
     water
-  else if n == 1 then
+  else if n < 12 then
     rock
   else
     dirt
 
 random : Generator Terrain
 random =
-  Random.map pick (Random.int 0 2)
+  Random.map pick (Random.int 0 100)

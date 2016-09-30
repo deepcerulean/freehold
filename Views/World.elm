@@ -17,9 +17,7 @@ view hoverAt model =
 terrainView model =
   model.terrain
   |> Dict.toList
-  |> List.map (\(pt,terrain) ->
-    terrain |> Views.Terrain.view pt
-  )
+  |> List.map (\(pt,terrain) -> terrain |> Views.Terrain.view pt)
 
 terrainView' pos model =
   model.terrain
