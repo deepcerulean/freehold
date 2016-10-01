@@ -1,8 +1,6 @@
 import Algorithms.Conway
 import Graphics
-import Models.Direction exposing (Direction(..))
-import Models.Point exposing (Point)
-import Models.Terrain exposing (water, dirt)
+import Models.Point exposing (Point, Direction(..))
 import Models.World exposing (World)
 import Support.Wheel exposing (Delta)
 import Views.World
@@ -20,7 +18,7 @@ import Html exposing (Html)
 import Html.App as App
 
 -- global config
-worldSize = (120,80)
+worldSize = (160,55)
 
 -- type
 type Msg = ResizeWindow (Int, Int)
@@ -66,7 +64,7 @@ update message model =
       (model |> resize dims, Cmd.none)
 
     NewWorld world' ->
-      ({model | world = world' |> Models.World.evolve 4}, Cmd.none)
+      ({model | world = world' |> Models.World.evolve 6}, Cmd.none)
 
     Tick _ ->
       model |> tick
@@ -99,7 +97,7 @@ parse char model =
 
 pan : Direction -> Game -> Game
 pan dir model =
-  { model | viewport = model.viewport |> Viewport.pan 0.3 dir }
+  { model | viewport = model.viewport |> Viewport.pan 0.2 dir }
 
 zoom : Delta -> Game -> Game
 zoom delta model =
@@ -128,7 +126,7 @@ generate (w,h) model =
 subscriptions : Game -> Sub Msg
 subscriptions model =
   Sub.batch [ Window.resizes sizeToMsg
-            , Time.every 100 Tick
+            , Time.every 20 Tick
             , Mouse.moves MoveMouse
             , Support.Wheel.deltas Zoom
             , Keyboard.presses Keypress

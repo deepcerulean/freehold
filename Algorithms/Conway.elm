@@ -54,21 +54,23 @@ applyAt model (alive,dead) pt (add, remove) =
       model |> matches pt alive
 
     starvation =
-      6
+      8
 
     loneliness =
-      1
+      2
 
     birth =
-      [2..6]
+      [3..9]
 
+    born =
+      List.member neighbors birth
   in
     if living then
       if neighbors < loneliness || starvation < neighbors then
         (add, pt :: remove)
       else
         (add, remove)
-    else if List.member neighbors birth then
+    else if born then
       (pt :: add, remove)
     else
       (add, remove)

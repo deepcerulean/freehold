@@ -3,7 +3,7 @@ module Models.World exposing (World, empty, generate, evolve)
 import Algorithms.Conway
 import Models.Person exposing (Person, init)
 import Models.Cartogram exposing (Cartogram)
-import Models.Terrain exposing (water, dirt, rock)
+import Models.Terrain exposing (water, dirt, rock, sand)
 
 import String
 import Dict exposing (Dict)
@@ -39,6 +39,8 @@ generate (width,height) =
 evolve : Int -> World -> World
 evolve n model =
   { model | terrain = model.terrain
-                      |> Algorithms.Conway.evolve n (water,dirt)
-                      |> Algorithms.Conway.evolve n (rock,dirt)
+                      --|> Algorithms.Conway.evolve n (dirt,water)
+                      |> Algorithms.Conway.evolve (n//2) (rock,dirt)
+                      |> Algorithms.Conway.evolve (n//2) (sand,water)
+                      |> Algorithms.Conway.evolve (n) (water,dirt)
   }

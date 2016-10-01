@@ -1,6 +1,24 @@
-module Models.Point exposing (Point, grid, adjacent, slide, delta)
+module Models.Point exposing (Point, Direction(..), grid, adjacent, slide, delta)
 
-import Models.Direction exposing (Direction(..))
+type Direction = North
+               | South
+               | East
+               | West
+               | Northeast
+               | Northwest
+               | Southeast
+               | Southwest
+
+allDirections =
+  [ North
+  , South
+  , East
+  , West
+  , Northeast
+  , Northwest
+  , Southeast
+  , Southwest
+  ]
 
 type alias Point = (Int, Int)
 
@@ -21,22 +39,34 @@ slide : Direction -> Point -> Point
 slide dir (x,y) =
   translate (delta dir) (x,y)
 
+adjacent : Point -> List Point
+adjacent pt =
+  allDirections
+  |> List.map (\dir -> slide dir pt)
+
 delta : Direction -> Point
 delta dir =
   case dir of
-    Models.Direction.North ->
+    North ->
       (0,-1)
 
-    Models.Direction.South ->
+    South ->
       (0,1)
 
-    Models.Direction.East ->
+    East ->
       (1,0)
 
-    Models.Direction.West ->
+    West ->
       (-1,0)
 
-adjacent : Point -> List Point
-adjacent pt =
-  Models.Direction.all
-  |> List.map (\dir -> slide dir pt)
+    Northwest ->
+      translate (delta North) (delta West)
+
+    Northeast ->
+      translate (delta North) (delta East)
+
+    Southwest ->
+      translate (delta South) (delta West)
+
+    Southeast ->
+      translate (delta South) (delta East)

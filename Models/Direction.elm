@@ -1,13 +1,22 @@
-module Models.Direction exposing (Direction(..), all)
+--module Models.Direction exposing (Direction(..), all, delta)
 
-type Direction = North
-               | South
-               | East
-               | West
-
-all =
-  [ North
-  , South
-  , East
-  , West
-  ]
+--type Direction = North
+--               | South
+--               | East
+--               | West
+--               | Northeast
+--               | Northwest
+--               | Southeast
+--               | Southwest
+--
+--all =
+--  [ North
+--  , South
+--  , East
+--  , West
+--  , Northeast
+--  , Northwest
+--  , Southeast
+--  , Southwest
+--  ]
+--
