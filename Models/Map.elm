@@ -1,7 +1,6 @@
 module Models.Map exposing (Map, init, set, at, random)
 
 import Models.Point exposing (Point, grid)
-import Models.Terrain exposing (Terrain, water, dirt)
 import Extend.List exposing (zip)
 
 import Dict exposing (Dict)

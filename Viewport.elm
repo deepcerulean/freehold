@@ -1,28 +1,46 @@
-module Viewport exposing (Viewport, init, pan, zoom, resize, find, animate)
+module Viewport exposing (Viewport, init, pan, zoom, resize, find, animate, offset)
 
 import Models.Point exposing (Point, Direction)
+import Body exposing (Body)
+
 import Mouse
 
+-- could push these into 'settings' param on viewport?
+friction = 0.35
+panFactor = 2.25
+maxPanSpeed = 4.0
 
+minZoom = 2
+maxZoom = 8
+zoomFriction = 0.04
+maxZoomVelocity = 0.8
+zoomFactor = 0.125
 
 sign x = if x < 0 then -1 else if x > 0 then 1 else 0
 
 type alias Viewport = { dimensions : ( Int, Int )
                       , scale : Float
-                      , offset : (Float, Float)
                       , worldDims : ( Int, Int )
-                      , panVelocity : (Float,Float)
                       , zoomVelocity : Float
+                      , offsetBody : Body
                       }
 
 init : (Int,Int) -> Viewport
-init worldDims' = { dimensions = (800,600)
-                  , scale = 1.0
-                  , offset = (0.0,0.0)
-                  , worldDims = worldDims'
-                  , panVelocity = (0,0)
-                  , zoomVelocity = 0
-                  }
+init (width,height) = { dimensions = (800,600)
+                      , scale = (minZoom+maxZoom)/2
+                      , worldDims = (width,height)
+                      , zoomVelocity = 0
+                      , offsetBody = Body.init (0,0) friction
+                      }
+                      |> centerAt (width//2,height//2)
+
+offset : Viewport -> (Float, Float)
+offset model =
+  model.offsetBody.position
+
+panVelocity : Viewport -> (Float, Float)
+panVelocity model =
+  model.offsetBody.velocity
 
 find : Mouse.Position -> Viewport -> (Int,Int)
 find pos model =
@@ -34,58 +52,39 @@ find pos model =
       model |> scaleFactor
 
     (ox, oy) =
-      model.offset
+      model |> offset
   in
       (round (((x) * scale) - (0.5 + ox)), round (((y) * scale) - (0.5 + oy)))
 
-maxPanSpeed = 1.0
-
 pan : Float -> Direction -> Viewport -> Viewport
-pan factor' dir model =
+pan factor dir model =
   let
-    factor =
-      factor' -- / model.scale
-
-    (vx,vy) =
-      model.panVelocity
-
     (dx,dy) =
       Models.Point.delta dir
 
     vx' =
-      vx + factor * (toFloat dx)
+      factor * (toFloat dx)
 
     vy' =
-      vy + factor * (toFloat dy)
+      factor * (toFloat dy)
 
-    vx'' =
-      if abs vx' > maxPanSpeed then maxPanSpeed * sign vx' else vx'
-
-    vy'' =
-      if abs vy' > maxPanSpeed then maxPanSpeed * sign vy' else vy'
+    offsetBody =
+      model.offsetBody
+        |> Body.applyImpulse (vx', vy')
+        |> Body.constrainVelocity maxPanSpeed maxPanSpeed
   in
-    { model | panVelocity = (vx'', vy'')
+    { model | offsetBody = offsetBody
     }
 
 zoom : Int -> Viewport -> Viewport
 zoom delta model =
   let
     dy =
-      0.15 * (toFloat delta)
-
-    --scale' =
-    --  max 1.0 (model.scale - dy)
-
-    --center =
-    --  model |> findCenter
+      zoomFactor * (toFloat delta)
   in
-    model
-      --|> freezeScroll
-      |> accelerateZoomVelocity dy --scale'
-      --|> scaleTo scale'
-      --|> centerAt center
+    model |> accelerateZoomVelocity dy
 
-maxZoomVelocity = 0.8
+accelerateZoomVelocity : Float -> Viewport -> Viewport
 accelerateZoomVelocity factor model =
   let
     zoomVelocity =
@@ -95,12 +94,6 @@ accelerateZoomVelocity factor model =
         model.zoomVelocity + factor
   in
   { model | zoomVelocity = zoomVelocity }
-
-freezeScroll model =
-  { model | panVelocity = (0,0) }
-
-scaleTo scale' model =
-  { model | scale = scale' }
 
 resize : (Int,Int) -> Viewport -> Viewport
 resize dims model =
@@ -120,7 +113,7 @@ findCenter model =
       model.dimensions
 
     (ox,oy) =
-      model.offset
+      model |> offset
 
     (scx,scy) =
       ( toFloat vWidth / 2, toFloat vHeight / 2)
@@ -157,7 +150,7 @@ centerAt (x,y) model =
     oy =
       -(toFloat y) + h
   in
-    { model | offset = (ox - 0.5,oy - 0.5) }
+    { model | offsetBody = model.offsetBody |> Body.place (ox - 0.5,oy - 0.5) }
 
 scaleFactor : Viewport -> Float
 scaleFactor model =
@@ -187,9 +180,6 @@ animate model =
     |> animateZoom
     |> animatePan
 
-zoomFriction = 0.05
-minZoom = 1
-maxZoom = 4
 animateZoom : Viewport -> Viewport
 animateZoom model =
   let
@@ -214,41 +204,44 @@ animateZoom model =
             , zoomVelocity = zoomVelocity'
     }
     |> centerAt (center)
-    else model
+    |> frame
+    else model |> frame
 
-friction = 0.0175 -- pan fric
 animatePan : Viewport -> Viewport
 animatePan model =
-  let
-    {offset,panVelocity} =
-      model
-
-    (vx,vy) =
-      panVelocity
-  in
-    if abs vx > 0 || abs vy > 0 then
-      let
-        (ox,oy) =
-          offset
-
-
-        vx' =
-          vx - (friction * sign vx)
-
-        vy' =
-          vy - (friction * sign vy)
-
-        vx'' =
-          if sign vx' == sign vx then vx' else 0
-
-        vy'' =
-          if sign vy' == sign vy then vy' else 0
-      in
-        { model | panVelocity = (vx'',vy'') }
-        |> translate (vx'',vy'')
-      else model
+  { model | offsetBody = model.offsetBody |> Body.step }
+  |> frame
 
 translate : (Float,Float) -> Viewport -> Viewport
 translate (dx,dy) model =
-  let (ox,oy) = model.offset in
-  { model | offset = (ox+dx,oy+dy) }
+  let (ox,oy) = model |> offset in
+  { model | offsetBody = model.offsetBody |> Body.place (ox+dx,oy+dy) }
+  |> frame
+
+frame : Viewport -> Viewport
+frame model =
+  let
+    (ox,oy) =
+      model |> offset
+
+    scale = model |> scaleFactor
+
+    (width,height) =
+      model.worldDims
+
+    (vWidth,vHeight) =
+      model.dimensions
+
+    xMax =
+      toFloat width - (toFloat vWidth * scale)
+
+    yMax =
+      toFloat height - (toFloat vHeight * scale)
+
+    ox' =
+      min 0 (max -xMax ox)
+
+    oy' =
+      min 0 (max -yMax oy)
+  in
+    { model | offsetBody = model.offsetBody |> Body.place (ox', oy') }

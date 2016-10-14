@@ -1,4 +1,3 @@
-import Algorithms.Conway
 import Graphics
 import Models.Point exposing (Point, Direction(..))
 import Models.World exposing (World)
@@ -7,7 +6,6 @@ import Views.World
 import Viewport exposing (Viewport)
 
 import Task
-import String
 import Char
 import Random
 import Time exposing (Time, millisecond)
@@ -18,24 +16,31 @@ import Html exposing (Html)
 import Html.App as App
 
 -- global config
-worldSize = (160,55)
+worldSize : (Int,Int)
+worldSize = (60,80)
+
+framerate : Float
+framerate = 26
 
 -- type
 type Msg = ResizeWindow (Int, Int)
          | Tick Time
          | NewWorld World
          | MoveMouse Mouse.Position
-         | Zoom Delta
+         | ClickMouse Mouse.Position
+         | Zoom Int
          | Keypress KeyCode
          | NoOp
 
 type alias Game = { world : World
                   , setup : Bool
-                  , hover : Maybe (Int,Int)
+                  , hover : Maybe (Int, Int)
+                  , select : Maybe (Int, Int)
                   , viewport : Viewport
                   }
 
 -- MAIN
+main : Platform.Program Basics.Never
 main =
   App.program
   { init = init worldSize
@@ -51,10 +56,14 @@ init dims =
     { world = Models.World.empty dims
     , setup = False
     , hover = Nothing
+    , select = Nothing
     , viewport = Viewport.init dims
     },
     Task.perform (\_ -> NoOp) sizeToMsg Window.size
   )
+
+mkCmd : a -> Cmd a
+mkCmd = Task.perform (Debug.crash << toString) identity << Task.succeed
 
 -- update
 update : Msg -> Game -> (Game, Cmd Msg)
@@ -64,22 +73,26 @@ update message model =
       (model |> resize dims, Cmd.none)
 
     NewWorld world' ->
-      ({model | world = world' |> Models.World.evolve 6}, Cmd.none)
+      ({model | world = world'}, Cmd.none) -- |> Models.World.terraform 4 }, Cmd.none)
 
     Tick _ ->
       model |> tick
 
     MoveMouse pos ->
-      (model |> mouseAt pos, Cmd.none)
+      (model |> hoverAt pos, Cmd.none)
+
+    ClickMouse pos ->
+      (model |> clickAt pos, Cmd.none)
 
     Zoom delta ->
-      (model |> zoom delta, Cmd.none)
+      (model |> zoom -delta, Cmd.none)
 
     Keypress key ->
       (model |> press key, Cmd.none)
 
     NoOp ->
       (model, Cmd.none)
+
 
 press : KeyCode -> Game -> Game
 press key model =
@@ -90,18 +103,24 @@ parse : Char -> Game -> Game
 parse char model =
   case char of
     'h' -> model |> pan East
+    'a' -> model |> pan East
     'l' -> model |> pan West
+    'd' -> model |> pan West
     'j' -> model |> pan North
+    's' -> model |> pan North
     'k' -> model |> pan South
-    _  -> model
+    'w' -> model |> pan South
+    '-' -> model |> zoom 1
+    '=' -> model |> zoom -1
+    _   -> model
 
 pan : Direction -> Game -> Game
 pan dir model =
-  { model | viewport = model.viewport |> Viewport.pan 0.2 dir }
+  { model | viewport = model.viewport |> Viewport.pan 1.0 dir }
 
-zoom : Delta -> Game -> Game
+zoom : Int -> Game -> Game
 zoom delta model =
-  { model | viewport = model.viewport |> Viewport.zoom delta.y }
+  { model | viewport = model.viewport |> Viewport.zoom delta }
 
 resize : (Int,Int) -> Game -> Game
 resize dims model =
@@ -109,26 +128,49 @@ resize dims model =
 
 tick : Game -> (Game, Cmd Msg)
 tick model =
-  { model | viewport = model.viewport |> Viewport.animate }
+  { model | viewport = model.viewport |> Viewport.animate
+  }
+  |> evolve
+  |> terraform
   |> generate model.world.dimensions
 
-mouseAt : Mouse.Position -> Game -> Game
-mouseAt pos model =
+hoverAt : Mouse.Position -> Game -> Game
+hoverAt pos model =
   let pos' = model.viewport |> Viewport.find pos in
       { model | hover = Just pos' }
+
+clickAt : Mouse.Position -> Game -> Game
+clickAt pos model =
+  let pos' = model.viewport |> Viewport.find pos in
+      { model | select = Just pos' }
 
 generate : (Int,Int) -> Game -> (Game, Cmd Msg)
 generate (w,h) model =
   if model.setup then (model, Cmd.none) else
     ({ model | setup = True }, Random.generate NewWorld (Models.World.generate (w,h)))
 
+terraform : Game -> Game
+terraform model =
+  if ((not (model.setup)) || (model.world |> Models.World.isDoneTerraforming)) then
+    model
+  else
+    { model | world = model.world |> Models.World.terraform 1 }
+
+evolve : Game -> Game
+evolve model =
+  if (model.setup && (model.world |> Models.World.isDoneTerraforming)) then
+    { model | world = model.world |> Models.World.step model.hover model.select }
+  else
+    model
+
 -- subs
 subscriptions : Game -> Sub Msg
 subscriptions model =
   Sub.batch [ Window.resizes sizeToMsg
-            , Time.every 20 Tick
+            , Time.every (Time.millisecond * (1000/framerate)) Tick
             , Mouse.moves MoveMouse
-            , Support.Wheel.deltas Zoom
+            , Mouse.clicks ClickMouse
+            , Support.Wheel.xDeltas Zoom
             , Keyboard.presses Keypress
             ]
 
@@ -137,11 +179,18 @@ sizeToMsg size =
   ResizeWindow (size.width, size.height)
 
 -- view
+view : Game -> Html a
 view model =
   let
     worldView =
-      Views.World.view model.hover model.world
+      model.world |> (Views.World.view model.hover model.select)
 
-    offset = model.viewport.offset
+    offset =
+      model.viewport |> Viewport.offset
+
+    infoView =
+        [ Graphics.text (10,4) "white" 2.0 ("hover at " ++ (toString model.hover))
+        ]
+
   in
-    Graphics.view model.viewport worldView
+    Graphics.view model.viewport worldView infoView

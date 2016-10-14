@@ -1,4 +1,4 @@
-module Models.Point exposing (Point, Direction(..), grid, adjacent, slide, delta)
+module Models.Point exposing (Point, Direction(..), grid, adjacent, slide, delta, towards, distance, allDirections, code, invertDirection)
 
 type Direction = North
                | South
@@ -9,6 +9,7 @@ type Direction = North
                | Southeast
                | Southwest
 
+allDirections : List Direction
 allDirections =
   [ North
   , South
@@ -20,31 +21,42 @@ allDirections =
   , Southwest
   ]
 
-type alias Point = (Int, Int)
+type alias Point number = (number, number)
 
-grid : Int -> Int -> List Point
+grid : Int -> Int -> List (Point Int)
 grid width height =
   let
     gridPoint = \y ->
-      List.map (\x -> (x,y)) [0..(width-1)]
+      List.map (\x -> (x,y)) [0..((width)-1)]
   in
-    [0..(height-1)]
+    [0..((height)-1)]
     |> List.concatMap gridPoint
 
-translate : Point -> Point -> Point
+distance : Point Float -> Point Float -> Float
+distance (ax,ay) (bx,by) =
+  let
+    dx =
+      (ax - bx)
+
+    dy =
+      (ay - by)
+  in
+    sqrt(  (dx*dx) + (dy*dy)  )
+
+translate : Point number -> Point number -> Point number
 translate (ax,ay) (bx,by) =
   (ax+bx, ay+by)
 
-slide : Direction -> Point -> Point
+slide : Direction -> Point number -> Point number
 slide dir (x,y) =
   translate (delta dir) (x,y)
 
-adjacent : Point -> List Point
+adjacent : Point number -> List (Point number)
 adjacent pt =
   allDirections
   |> List.map (\dir -> slide dir pt)
 
-delta : Direction -> Point
+delta : Direction -> Point number
 delta dir =
   case dir of
     North ->
@@ -70,3 +82,55 @@ delta dir =
 
     Southeast ->
       translate (delta South) (delta East)
+
+towards : Point number -> Point number -> Direction
+towards (ax,ay) (bx,by) =
+  if (ax > bx) && (ay > by) then
+     Southeast
+  else
+    if (ax < bx) && (ay > by) then
+      Southwest
+    else
+      if (ax > bx) && (ay < by) then
+        Northeast
+      else
+        if (ax < bx) && (ay < by) then
+          Northwest
+        else
+          towards' (ax,ay) (bx,by)
+
+towards' : Point number -> Point number -> Direction
+towards' (ax,ay) (bx,by) =
+  let
+    dx =
+      abs (ax - bx)
+    dy =
+      abs (ay - by)
+
+  in
+    if dx > dy then
+      if (ax > bx) then
+        East
+      else
+        West
+    else
+      if (ay > by) then
+        South
+      else
+        North
+
+code : Point Int -> Int
+code (x,y) =
+  (x * 10000) + y
+
+invertDirection : Direction -> Direction
+invertDirection direction =
+  case direction of
+    North -> South
+    South -> North
+    East -> West
+    West -> East
+    Northeast -> Southwest
+    Northwest -> Southeast
+    Southwest -> Northeast
+    Southeast -> Northwest

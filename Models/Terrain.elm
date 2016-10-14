@@ -1,4 +1,4 @@
-module Models.Terrain exposing (Terrain, random, dirt, water, rock, sand, color, hoverColor)
+module Models.Terrain exposing (Terrain, random, dirt, water, rock, sand, bedrock, color, hoverColor)
 
 import Models.Point exposing (Point)
 
@@ -8,6 +8,11 @@ type Terrain = Dirt
              | Water
              | Rock
              | Sand
+             | Bedrock
+
+bedrock : Terrain
+bedrock =
+  Bedrock
 
 dirt : Terrain
 dirt =
@@ -40,6 +45,9 @@ color terrain =
     Sand ->
       "rgb(160,160,80)"
 
+    Bedrock ->
+      "rgb(180,120,120)"
+
 hoverColor : Terrain -> String
 hoverColor terrain =
   case terrain of
@@ -55,16 +63,21 @@ hoverColor terrain =
     Sand ->
       "rgb(240,240,160)"
 
+    Bedrock ->
+      "rgb(240,160,160)"
+
 pick : Int -> Terrain
 pick n =
-  if n < 4 then
+  if n < 5 then
     water
   else if n < 10 then
     rock
-  else if n < 14 then
+  else if n < 12 then
     sand
-  else
+  else if n < 36 then
     dirt
+  else
+    bedrock
 
 random : Generator Terrain
 random =

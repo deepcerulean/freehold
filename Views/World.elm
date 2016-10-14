@@ -1,30 +1,55 @@
 module Views.World exposing (view)
 
+import Models.Terrain
+import Models.Point exposing (Point)
 import Models.World exposing (World)
 import Views.Terrain
+import Views.Person
+import Graphics exposing (rect, outline)
 
-import String
 import Dict
-import Html
+import Svg
 
-view hoverAt model =
-  case hoverAt of
-    Nothing ->
-      terrainView model
-    Just pos ->
-      terrainView' pos model
+view : Maybe (Point Int) -> Maybe (Point Int) -> World -> List (Svg.Svg a)
+view hoverAt selectAt model =
+  let
+    hover =
+      case hoverAt of
+        Nothing ->
+          []
 
+        Just pos ->
+          [ rect pos "rgba(255,255,255,0.8)" ]
+
+    select =
+      case selectAt of
+        Nothing ->
+          []
+
+        Just pos ->
+          [ outline pos "rgba(255,255,255,0.8)" ]
+
+    bg =
+      [ Graphics.quad (0,0) model.dimensions (Models.Terrain.color Models.Terrain.dirt) ]
+
+    people =
+      model.people
+        |> List.concatMap (Views.Person.view)
+
+  in
+    bg ++
+    (model |> terrainView)
+    ++ people
+    ++ hover
+    ++ select
+
+
+terrainView : World -> List (Svg.Svg a)
 terrainView model =
   model.terrain
   |> Dict.toList
-  |> List.map (\(pt,terrain) -> terrain |> Views.Terrain.view pt)
-
-terrainView' pos model =
-  model.terrain
-  |> Dict.toList
-  |> List.map (\(pt,terrain) ->
-    if pos == pt then
-      terrain |> Views.Terrain.hover pt
-    else
-      terrain |> Views.Terrain.view pt
+  |> List.concatMap (\(pt,terrain) ->
+    if terrain == Models.Terrain.dirt then [] else
+    [ terrain |> Views.Terrain.view pt ]
   )
+

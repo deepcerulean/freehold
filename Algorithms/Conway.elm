@@ -5,23 +5,28 @@ import Models.Map exposing (Map, set, at)
 
 import Dict exposing (Dict)
 
-evolve : Int -> (a,a) -> Map a -> Map a
-evolve n (alive,dead) model =
+type alias Life = { starvation : Int
+                  , loneliness : Int
+                  , birth : List Int
+                  }
+
+evolve : Life -> Int -> (a,a) -> Map a -> Map a
+evolve life n (alive,dead) model =
   if n < 1 then
     model
   else
-    let model' = apply (alive,dead) model in
-    evolve (n-1) (alive,dead) model'
+    let model' = apply life (alive,dead) model in
+    evolve life (n-1) (alive,dead) model'
 
-apply : (a,a) -> Map a -> Map a
-apply (alive,dead) model =
+apply : Life -> (a,a) -> Map a -> Map a
+apply life (alive,dead) model =
   let
     pts =
       model |> Dict.keys
 
     (add, remove) =
       pts
-      |> List.foldr (applyAt model (alive,dead)) ([], [])
+      |> List.foldr (applyAt model life (alive,dead)) ([], [])
 
     model' =
       add |> List.foldr (set alive) model
@@ -44,8 +49,8 @@ neighborCount pt alive model =
   |> List.filter (\pt -> model |> matches pt alive)
   |> List.length
 
-applyAt : Map a -> (a,a) -> Point -> (List Point, List Point) -> (List Point, List Point)
-applyAt model (alive,dead) pt (add, remove) =
+applyAt : Map a -> Life -> (a,a) -> Point -> (List Point, List Point) -> (List Point, List Point)
+applyAt model {starvation,loneliness,birth} (alive,dead) pt (add, remove) =
   let
     neighbors =
       model |> neighborCount pt alive
@@ -53,20 +58,11 @@ applyAt model (alive,dead) pt (add, remove) =
     living =
       model |> matches pt alive
 
-    starvation =
-      8
-
-    loneliness =
-      2
-
-    birth =
-      [3..9]
-
     born =
       List.member neighbors birth
   in
     if living then
-      if neighbors < loneliness || starvation < neighbors then
+      if neighbors <= loneliness || starvation <= neighbors then
         (add, pt :: remove)
       else
         (add, remove)
