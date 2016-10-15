@@ -53,7 +53,7 @@ peopleFollow pt model =
         in
           case maybeTerrain of
             Just terrain ->
-              not (terrain == Models.Terrain.dirt)
+              not (terrain == Models.Terrain.dirt || terrain == Models.Terrain.sand)
             Nothing ->
               False
 

@@ -1,4 +1,4 @@
-module Models.Map exposing (Map, init, set, at, random)
+module Models.Map exposing (Map, Location, init, set, at, random)
 
 import Models.Point exposing (Point, grid)
 import Extend.List exposing (zip)
@@ -6,22 +6,24 @@ import Extend.List exposing (zip)
 import Dict exposing (Dict)
 import Random exposing (Generator, andThen)
 
-type alias Map a = Dict Point a
+type alias Location = Point Int
 
-init : (Int, Int) -> (Point -> a) -> Map a
+type alias Map a = Dict Location a
+
+init : (Int, Int) -> (Location -> a) -> Map a
 init (width, height) inspect =
   grid width height
   |> List.foldr (set' inspect) Dict.empty
 
-set : a -> Point -> Map a -> Map a
+set : a -> Location -> Map a -> Map a
 set a pt model =
   model |> Dict.insert pt a
 
-set' : (Point -> a) -> Point -> Map a -> Map a
+set' : (Location -> a) -> Location -> Map a -> Map a
 set' f pt model =
   model |> set (f pt) pt
 
-at : Point -> Map a -> Maybe a
+at : Location -> Map a -> Maybe a
 at pt model =
   model |> Dict.get pt
 

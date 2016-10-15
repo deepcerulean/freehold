@@ -37,6 +37,7 @@ type alias Game = { world : World
                   , hover : Maybe (Int, Int)
                   , select : Maybe (Int, Int)
                   , viewport : Viewport
+                  , speed : Int
                   }
 
 -- MAIN
@@ -58,6 +59,7 @@ init dims =
     , hover = Nothing
     , select = Nothing
     , viewport = Viewport.init dims
+    , speed = 1
     },
     Task.perform (\_ -> NoOp) sizeToMsg Window.size
   )
@@ -110,6 +112,10 @@ parse char model =
     's' -> model |> pan North
     'k' -> model |> pan South
     'w' -> model |> pan South
+    '0' -> { model | speed = 0 }
+    '1' -> { model | speed = 1 }
+    '2' -> { model | speed = 2 }
+    '3' -> { model | speed = 3 }
     '-' -> model |> zoom 1
     '=' -> model |> zoom -1
     _   -> model
@@ -130,7 +136,7 @@ tick : Game -> (Game, Cmd Msg)
 tick model =
   { model | viewport = model.viewport |> Viewport.animate
   }
-  |> evolve
+  |> evolve model.speed
   |> terraform
   |> generate model.world.dimensions
 
@@ -156,10 +162,11 @@ terraform model =
   else
     { model | world = model.world |> Models.World.terraform 1 }
 
-evolve : Game -> Game
-evolve model =
-  if (model.setup && (model.world |> Models.World.isDoneTerraforming)) then
+evolve : Int -> Game -> Game
+evolve n model =
+  if n > 0 && (model.setup && (model.world |> Models.World.isDoneTerraforming)) then
     { model | world = model.world |> Models.World.step model.hover model.select }
+      |> evolve (n-1)
   else
     model
 

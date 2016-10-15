@@ -2,8 +2,10 @@ module Views.Person exposing (view)
 
 import Models.Person exposing (Person)
 import Extend.List
+
 import Graphics
 import Svg
+import Dict
 
 view : Person -> List (Svg.Svg a)
 view model =
@@ -30,10 +32,20 @@ view model =
       else
         []
 
+    searchGrid =
+      case model.pathfinding of
+        Nothing ->
+          []
+        Just ctx ->
+          ctx.visited
+            |> Dict.keys
+            |> List.map (\(x',y') -> Graphics.circle 0.4 "rgba(160,240,160,0.3)" (toFloat x', toFloat y')) --model.
+
   in
-      [ Graphics.circle (x,y) (0.5) "rgb(80,80,240)"
-      , Graphics.circle (x,y-0.5) (0.3) "rgb(220,180,180)"
+      [ Graphics.circle (0.5) "rgb(80,80,240)" (x,y)
+      , Graphics.circle (0.3) "rgb(220,180,180)" (x,y-0.5)
       , Graphics.text (x,y-1.0) "rgb(240,240,240)" 0.3 model.name
       ]
         ++ goalLine
         ++ pathLines
+        ++ searchGrid

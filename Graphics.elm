@@ -55,8 +55,8 @@ rect (x',y') color =
        , fill color
        ] []
 
-circle : (Float,Float) -> Float -> String -> Svg msg
-circle (x',y') radius color =
+circle : Float -> String -> Point Float -> Svg msg
+circle radius color (x',y') =
   Svg.circle [ cx (toString x')
              , cy (toString y')
              , r (toString radius) --"1.001"

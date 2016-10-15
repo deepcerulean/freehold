@@ -1,74 +1,118 @@
-module Algorithms.Path exposing (Location, seek, find, findBy)
+module Algorithms.Path exposing (Context, init, seek, find, findIncremental, movesFrom)
 
 import Models.Point exposing (Point, Direction)
-import Extend.List
+import Models.Map exposing (Map, Location)
 
-type alias Location = Point Int
-type alias PathSegment = (Location, Direction)
+import Dict exposing (Dict)
+
+
+type alias Path = Maybe (List Location)
+type alias SearchMap = Map Direction
+
+
+type alias Context = { visited : SearchMap
+                     , frontier : SearchMap
+                     , source : Location
+                     , predicate : (Location -> Bool)
+                     , moves : (Location -> SearchMap)
+                     , depth : Int
+                     , path : Path
+                     }
+
+init : Location -> Location -> (Location -> Bool) -> Context
+init dst src blocked =
+    { visited = Dict.empty
+    , frontier = Dict.empty
+    , source = src
+    , predicate = (\pt -> pt == dst)
+    , moves = movesFrom blocked
+    , depth = 100
+    , path = Nothing
+    }
 
 seek : Location -> Location -> (Location -> Bool) -> (List Location)
 seek dst src blocked =
-  find dst src (movesFrom blocked)
+  if src == dst then [] else
+  find dst src blocked
   |> Maybe.withDefault []
-  |> Debug.log "Path#seek"
 
-movesFrom : (Location -> Bool) ->  Location -> List PathSegment
+movesFrom : (Location -> Bool) ->  Location -> SearchMap
 movesFrom blocked point =
   Models.Point.allDirections
-  |> List.map (\direction -> (Models.Point.slide direction point, direction))
-  |> List.filter ((\p -> not (blocked p)) << fst)
+    |> List.map (\direction -> (Models.Point.slide direction point, direction))
+    |> List.filter ((\p -> not (blocked p)) << fst)
+    |> Dict.fromList
 
-find : Location -> Location -> (Location -> List PathSegment) -> Maybe (List Location)
-find dst src moves =
-  findBy (\pt -> pt == dst) moves src
+find : Location -> Location -> (Location -> Bool) -> Maybe (List Location)
+find dst src pred =
+  init dst src pred |> find'
 
-findBy : (Location -> Bool) -> (Location -> List PathSegment) -> Location -> Maybe (List Location)
-findBy predicate moves source =
-  findBy' [] [] source predicate moves 100
-
-findBy' : List PathSegment -> List PathSegment -> Location -> (Location -> Bool) -> (Location -> List PathSegment) -> Int -> Maybe (List Location)
-findBy' visited frontier source predicate moves depth =
+find' : Context -> Maybe (List Location)
+find' context =
+  let {visited, frontier, source, predicate, moves, depth} = context in
   if depth < 0 then
     Nothing
   else
-    let
-      maybeGoal =
-        frontier
-        |> List.filter (predicate << fst)
+    let context' = context |> findIncremental in
+    case context'.path of
+      Nothing ->
+        find' context'
+
+      Just path' ->
+        Just path'
+
+findIncremental : Context -> Context
+findIncremental context =
+  let
+    {visited, frontier, source, predicate, moves, depth} =
+      context
+
+    maybeGoal =
+      frontier
+        |> Dict.keys
+        |> List.filter predicate
         |> List.head
-    in
-      case maybeGoal of
-        Just (goal,_) ->
+  in
+    case maybeGoal of
+      Just goal ->
+        let
+          path =
+            (constructPath (Dict.union visited frontier) source goal)
+              |> Debug.log "constructed path!!!"
+        in
+          { context | path = Just (List.reverse path) }
+
+      Nothing ->
+        if Dict.isEmpty frontier then
+          { context | depth = context.depth - 1
+                    , frontier = moves source
+          }
+            |> Debug.log "frontier was empty, moving from source"
+        else
           let
-            path =
-              (constructPath (visited ++ frontier) source goal)
+            (ox,oy) =
+              source
+
+            newFrontier =
+               (frontier
+                |> Dict.keys
+                |> List.sortBy (\(px,py) -> -(Models.Point.distance (toFloat ox,toFloat oy) (toFloat px, toFloat py)))
+                |> List.map moves
+                |> List.foldl Dict.union Dict.empty
+                )
+            newVisited =
+              Dict.union visited frontier
+
           in
-            Just (List.reverse path)
+            if Dict.isEmpty frontier then
+              context
+            else
+              { context | visited = newVisited
+                        , frontier = (Dict.diff newFrontier newVisited)
+                        , depth = (context.depth-1)
+              }
 
-        Nothing ->
-          if List.length frontier == 0 then
-            let frontier' = moves source in
-              findBy' visited frontier' source predicate moves (depth-1)
-          else
-            let
-              visitedPositions =
-                List.map fst newVisited
-
-              newFrontier =
-                frontier
-                |> List.concatMap (moves << fst)
-                |> List.filter (\(pt,_) -> not (List.member pt visitedPositions))
-                |> Extend.List.uniqueBy (Models.Point.code << fst)
-
-              newVisited =
-                (visited ++ frontier)
-            in
-              if List.length frontier > 0 then
-                findBy' newVisited (newFrontier) source predicate moves (depth-1)
-              else
-                Nothing
-
-constructPath : List PathSegment -> Location -> Location -> List Location
+constructPath : SearchMap -> Location -> Location -> List Location
 constructPath visited source destination =
   let
     isDestination = \pt ->
@@ -76,8 +120,9 @@ constructPath visited source destination =
 
     maybeDestination =
       visited
-      |> List.filter (isDestination << fst)
-      |> List.head
+        |> Dict.keys
+        |> List.filter isDestination
+        |> List.head
   in
      if isDestination source then
        []
@@ -86,10 +131,20 @@ constructPath visited source destination =
          Nothing ->
            []
 
-         Just (point, direction) ->
+         Just point ->
            let
-             newDest =
-               point
-               |> Models.Point.slide (Models.Point.invertDirection direction)
+             maybeDirection =
+               Dict.get point visited
            in
-             [destination] ++ (constructPath visited source newDest)
+             case maybeDirection of
+               Just direction ->
+                 let
+                   newDest =
+                     point
+                     |> Models.Point.slide (Models.Point.invertDirection direction)
+                 in
+                   [destination] ++ (constructPath visited source newDest)
+
+               Nothing ->
+                 []
+                   |> Debug.log "construct path could not join up a path!!"

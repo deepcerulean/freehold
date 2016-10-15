@@ -4,12 +4,18 @@ import Algorithms.Path
 import Models.Point exposing (Point)
 import Body exposing (Body)
 
+type Activity = Idle
+              | Walking
+              | Pathfinding
+
 -- type
 type alias Person = { name : String
                     , age : Int
                     , body : Body
                     , goal : Maybe (Point Int)
                     , path : List (Point Int)
+                    , pathfinding : Maybe (Algorithms.Path.Context)
+                    , ticks : Int
                     }
 
 -- init
@@ -20,6 +26,8 @@ init (x,y) name age =
   , body = Body.init (0.5 + (toFloat x), 0.5 + (toFloat y)) 0
   , goal = Nothing
   , path = []
+  , pathfinding = Nothing
+  , ticks = 0
   }
 
 clearPath : Person -> Person
@@ -28,62 +36,86 @@ clearPath model =
 
 findPathTo : Point Int -> (Point Int -> Bool) -> Person -> Person
 findPathTo target blocked model =
-  case model.path |> List.reverse |> List.head of
-    Nothing -> -- path is empty
-      model
-        |> Debug.log "path is empty..." --, do not seek path?"
-        |> seekPath target blocked
-
-    Just currentTarget ->
-      if (target |> Debug.log "new target") == (currentTarget |> Debug.log "current target") then
-        model
-          |> Debug.log "path already exists, keep current path"
-      else
-        model
-          |> Debug.log "path already exists, but not to endpoint -- recompute"
-          |> seekPath target blocked
-
-
-seekPath : Point Int -> (Point Int -> Bool) -> Person -> Person
-seekPath target blocked model =
   let
     (bx,by) =
       model.body.position
+        --|> Debug.log "position"
 
     bodyPos =
       (round (bx - 0.5), round (by - 0.5))
   in
-    if (blocked target) || (blocked bodyPos) then
-      { model | path = [] }
+    if (blocked target) || (blocked bodyPos) || (target == bodyPos) then
+      { model | path = []
+              , pathfinding = Nothing
+      }
     else
-      let
-        path' =
-          Algorithms.Path.seek bodyPos target blocked
-            |> List.reverse
-      in
-        if List.length path' == 0 then
-          { model | path = [] }
-          |> Debug.log "no path..."
-        else
-          { model | path = path' ++ [target] }
-          |> Debug.log "found path!!!"
+      case model.pathfinding of
+        Nothing ->
+          case model.path |> List.reverse |> List.head of
+            Nothing ->
+              --model
+              --if List.length model.path == 0 then
+              { model | pathfinding = Just (Algorithms.Path.init target bodyPos blocked)
+                      , path = []
+              }
+              --  |> Debug.log "no path so overriding?"
+
+            Just pt ->
+              if pt == target then
+                model -- we already have a path..?
+              else
+                { model | pathfinding = Just (Algorithms.Path.init target bodyPos blocked)
+                        , path = []
+                }
+                |> Debug.log "overriding existing pathfinding context, new target identified"
+
+        Just ctx ->
+          model
+
+findPaths : Person -> Person
+findPaths model =
+  case model.pathfinding of
+    Nothing ->
+      model
+
+    Just context ->
+      if context.depth < 0 then
+        { model | path = []
+                , pathfinding = Nothing
+        }
+      else
+        let
+          context' = context
+            |> Algorithms.Path.findIncremental
+        in
+          case context'.path of
+            Nothing ->
+              { model | pathfinding = Just context' }
+              |> Debug.log "increment pathfinding..."
+              --{ model | pathfinding = Just (context') -- |> Algorithms.Path.findIncremental)
+              --        , path = []
+              --} |> Debug.log "start finding path..."
+
+            Just path' ->
+              { model | path = path'
+                      , pathfinding = Nothing
+              }
 
 setGoal : Point Int -> Person -> Person
 setGoal pt model =
   { model | goal = Just pt }
-  |> Debug.log "set goal"
 
 removeGoal : Person -> Person
 removeGoal model =
   { model | goal = Nothing }
-  |> Debug.log "remove goal!!!"
 
 move : Person -> Person
 move model =
-  model
+  { model | ticks = model.ticks + 1 }
     |> updateBody
-    |> followGoal
+    |> findPaths
     |> followPath
+    |> followGoal
 
 followGoal : Person -> Person
 followGoal model =
@@ -137,11 +169,9 @@ advancePathIfNeeded model =
     Nothing ->
       model
 
-
 advancePath : Person -> Person
 advancePath model =
   { model | path = model.path |> List.drop 1 }
-    |> Debug.log "advance path"
 
 updateBody : Person -> Person
 updateBody model =
@@ -159,14 +189,12 @@ follow (x,y) model =
 
     direction =
       Models.Point.towards model.body.position ((toFloat x)+0.5, (toFloat y) + 0.5)
-        |> Debug.log "follow direction"
 
     (dx,dy) =
       Models.Point.delta direction
-        |> Debug.log "follow delta"
 
     impulse =
-      0.03
+      0.05
 
     distance =
       Models.Point.distance model.body.position ((toFloat x)+0.5, (toFloat y) + 0.5)
