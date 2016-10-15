@@ -14,3 +14,45 @@ empty dims =
 generate : (Int, Int) -> Generator Cartogram
 generate (width,height) =
   Models.Map.random (width,height) Models.Terrain.random
+
+type alias WorldRegion = { dimensions : (Int, Int)
+                         , origin : (Int, Int)
+                         }
+
+analyze : Cartogram -> (List WorldRegion)
+analyze map =
+  let
+    subdivisions =
+      map |> subdivide
+  in
+    subdivisions
+
+subdivide : Cartogram -> List WorldRegion
+subdivide map =
+  let
+    gridWidth =
+      1 + (map |> Models.Map.width)
+
+    gridHeight =
+      1 + (map |> Models.Map.height)
+
+    regionSize =
+      5
+
+    buildRegion = (\(ox,oy) ->
+      { dimensions = (regionSize, regionSize)
+      , origin = (ox,oy)
+      })
+
+    width =
+      gridWidth // regionSize
+
+    height =
+      gridHeight // regionSize
+  in
+    let
+      regionRow = \y ->
+        List.map (\x -> buildRegion (x,y)) [0..((width)-1)]
+    in
+      [0..((height)-1)]
+    |> List.concatMap regionRow

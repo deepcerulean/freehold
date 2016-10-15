@@ -1,59 +1,86 @@
-module Algorithms.Path exposing (Context, init, seek, find, findIncremental, movesFrom)
+module Algorithms.Path exposing (Context, SearchMap, init, seek, find, findIncremental, movesFrom)
 
-import Models.Point exposing (Point, Direction)
+import Models.Point exposing (Point, Direction(..))
 import Models.Map exposing (Map, Location)
 
 import Dict exposing (Dict)
+import Set exposing (Set)
 
 
 type alias Path = Maybe (List Location)
-type alias SearchMap = Map Direction
-
+type alias SearchData = (Float, Direction)
+type alias SearchMap = Map SearchData --Direction
 
 type alias Context = { visited : SearchMap
                      , frontier : SearchMap
                      , source : Location
-                     , predicate : (Location -> Bool)
-                     , moves : (Location -> SearchMap)
+                     , dest : Location
+                     , blocked : Set Location
+                     , moves : (Float -> Location -> SearchMap)
                      , depth : Int
                      , path : Path
                      }
 
-init : Location -> Location -> (Location -> Bool) -> Context
-init dst src blocked =
-    { visited = Dict.empty
+-- todo:
+--   [ ] don't search off the map
+--   [ ] check zones before searching
+--   [ ] hierarchical 'region' analysis for speeding up long paths!
+
+-- it's really a graph...
+
+--type alias Region = { position : Location
+--                    , width : Int
+--                    , height : Int
+--                    , connections : List Connection
+--                    }
+-- type alias Connection = { adjacentRegion : Region, location : Location }
+--
+--type alias Analysis = { zones: List (Set Location)
+--                      , regions: List (Region)
+--                      }
+
+maxDepth : Int
+maxDepth = 10000 -- no more than 10k cells searched...
+                 -- we may need hierarchical srch!!
+                 -- and island/continent is still a prob too, at least a quick 'zones' analysis
+
+init : Location -> Location -> Set Location -> Context --(Location -> Bool) -> Context
+init dst src blocked' =
+    { visited = Dict.insert src (-1,Northeast) Dict.empty
     , frontier = Dict.empty
     , source = src
-    , predicate = (\pt -> pt == dst)
-    , moves = movesFrom blocked
-    , depth = 100
+    , dest = dst
+    --, predicate = (\pt -> pt == dst)
+    , moves = movesFrom blocked'
+    , depth = maxDepth
+    , blocked = blocked'
     , path = Nothing
     }
 
-seek : Location -> Location -> (Location -> Bool) -> (List Location)
+seek : Location -> Location -> Set Location -> (List Location)
 seek dst src blocked =
   if src == dst then [] else
   find dst src blocked
   |> Maybe.withDefault []
 
-movesFrom : (Location -> Bool) ->  Location -> SearchMap
-movesFrom blocked point =
+movesFrom : Set Location -> Float -> Location -> SearchMap
+movesFrom blocked steps point =
   Models.Point.allDirections
-    |> List.map (\direction -> (Models.Point.slide direction point, direction))
-    |> List.filter ((\p -> not (blocked p)) << fst)
+    |> List.map (\direction ->
+      (Models.Point.slide direction point, (steps + (Models.Point.unitLength direction), direction)))
+    |> List.filter (\(p,_) -> not (Set.member p blocked))
     |> Dict.fromList
 
-find : Location -> Location -> (Location -> Bool) -> Maybe (List Location)
+find : Location -> Location -> Set Location -> Maybe (List Location)
 find dst src pred =
   init dst src pred |> find'
 
 find' : Context -> Maybe (List Location)
 find' context =
-  let {visited, frontier, source, predicate, moves, depth} = context in
-  if depth < 0 then
+  if context.depth < 0 then
     Nothing
   else
-    let context' = context |> findIncremental in
+    let context' = context |> findIncremental 10 in
     case context'.path of
       Nothing ->
         find' context'
@@ -61,16 +88,17 @@ find' context =
       Just path' ->
         Just path'
 
-findIncremental : Context -> Context
-findIncremental context =
+findIncremental : Int -> Context -> Context
+findIncremental n context =
+  if n < 1 then context else
   let
-    {visited, frontier, source, predicate, moves, depth} =
+    {visited, frontier, source, dest, moves, depth} =
       context
 
     maybeGoal =
       frontier
         |> Dict.keys
-        |> List.filter predicate
+        |> List.filter (\pt -> pt == dest)
         |> List.head
   in
     case maybeGoal of
@@ -85,37 +113,50 @@ findIncremental context =
       Nothing ->
         if Dict.isEmpty frontier then
           { context | depth = context.depth - 1
-                    , frontier = moves source
+                    , frontier = moves 0 source
           }
-            --|> Debug.log "frontier was empty, moving from source"
         else
-          let
-            (ox,oy) =
-              source
+          context
+            |> extendFrontier --100
+            |> findIncremental (n-1)
 
-            newFrontier =
-               (frontier
-                |> Dict.keys
-                |> List.sortBy (\(px,py) -> -(Models.Point.distance (toFloat ox,toFloat oy) (toFloat px, toFloat py)))
-                 -- so this ^^ is subtly 'wrong' -- we need to compute *path* distance so far, which i think does mean tracking depth per-cell?
-                 -- maybe we can get there by clever unions/folding but i'm not seeing it
-                 -- unfortunately not super-obvs how to do the path-distance comparison here even *if* it was available
-                 -- (which doesn't seem like it would be too bad)
-                -- todo fix this subtle pathfinding bug
-                |> List.map moves
-                |> List.foldl Dict.union Dict.empty
-                )
-            newVisited =
-              Dict.union visited frontier
+extendFrontier : Context -> Context
+extendFrontier context =
+  --if n < 1 then context else
+  let
+    {visited,frontier,moves,dest, source} =
+      context
 
-          in
-            if Dict.isEmpty frontier then
-              context
-            else
-              { context | visited = newVisited
-                        , frontier = (Dict.diff newFrontier newVisited)
-                        , depth = (context.depth-1)
-              }
+    pick =
+      frontier
+      |> Dict.toList
+      |> List.sortBy (\(pt,(n,dir)) -> n/2 + ((Models.Point.distance (Models.Point.asFloat pt) (Models.Point.asFloat dest))/2)) -- + ((Models.Point.distance (Models.Point.asFloat pt) (Models.Point.asFloat source))/2))
+      |> List.head
+      |> Maybe.withDefault ((-1,-1),(-1,Northeast))
+
+    (pickPoint,pickValue) =
+      pick
+
+    (pickSteps,pickDirection) =
+      pickValue
+
+    newVisited =
+      visited
+        |> Dict.insert pickPoint pickValue
+
+    movesFromPick =
+      moves pickSteps pickPoint
+        --|> Dict.filter (\((px,py),_) -> px > 0 && py > 0)
+
+    newFrontier =
+      (Dict.diff movesFromPick visited)
+      |> Dict.union (frontier |> Dict.remove pickPoint)
+
+  in
+    { context | visited = newVisited
+              , frontier = newFrontier
+              , depth = (context.depth-1)
+    } -- |> extendFrontier (n-1)
 
 constructPath : SearchMap -> Location -> Location -> List Location
 constructPath visited source destination =
@@ -142,7 +183,7 @@ constructPath visited source destination =
                Dict.get point visited
            in
              case maybeDirection of
-               Just direction ->
+               Just (_,direction) ->
                  let
                    newDest =
                      point

@@ -3,13 +3,14 @@ module Models.World exposing (World, empty, generate, terraform, isDoneTerraform
 import Algorithms.Conway
 
 import Models.Cartogram exposing (Cartogram)
-import Models.Map exposing (Map, at)
+--import Models.Map exposing (Map, at)
 import Models.Person exposing (Person, init)
 import Models.Point exposing (Point)
 import Models.Terrain exposing (water, dirt, rock, sand, bedrock)
 
 import Random exposing (Generator)
 import Dict
+import Set
 import List
 
 -- type
@@ -18,6 +19,8 @@ type alias World = { name : String
                    , people : List Person
                    , terrain : Cartogram
                    , dimensions : (Int, Int)
+                   , terraformOver : Bool
+                   , nonDirtTerrain : Cartogram
                    }
 
 empty : (Int,Int) -> World
@@ -26,6 +29,8 @@ empty dims =
   , people = []
   , terrain = Models.Cartogram.empty dims
   , dimensions = dims
+  , terraformOver = False
+  , nonDirtTerrain = Models.Cartogram.empty dims
   }
 
 isWithinDimensions : Point Int -> World -> Bool
@@ -42,25 +47,16 @@ step hover select model =
 peopleFollow : Maybe (Point Int) -> World -> World
 peopleFollow pt model =
   let
-    isBlocked = \pt ->
-      if not (model |> isWithinDimensions pt) then
-        True
-      else
-        let
-          maybeTerrain =
-            model.terrain
-              |> Models.Map.at pt
-        in
-          case maybeTerrain of
-            Just terrain ->
-              not (terrain == Models.Terrain.dirt || terrain == Models.Terrain.sand)
-            Nothing ->
-              False
+    blocked =
+      model.nonDirtTerrain
+        |> Dict.toList
+        |> List.map fst
+        |> Set.fromList
 
     modify =
       case pt of
         Just (x,y) ->
-          Models.Person.findPathTo (x,y) isBlocked
+          Models.Person.findPathTo (x,y) blocked
 
         Nothing ->
           Models.Person.clearPath
@@ -82,12 +78,14 @@ generate (width,height) =
     , people = [ Models.Person.init (width//2, height//2) "Gorn" 25 ]
     , terrain = terrain'
     , dimensions = (width,height)
+    , terraformOver = False
+    , nonDirtTerrain = Models.Cartogram.empty (width,height)
     }
     ) mapmaker
 
 terraform : Int -> World -> World
 terraform n model =
-  if n < 0 then model else
+  if (n < 0 || model.terraformOver) then model else
     let
       life = { starvation = 9
              , loneliness = 1
@@ -102,9 +100,14 @@ terraform n model =
       |> Algorithms.Conway.evolve life 1 (dirt,bedrock)
       }
       |> terraform (n-1)
+      |> checkDoneTerraforming
 
 isDoneTerraforming : World -> Bool
 isDoneTerraforming model =
+  model.terraformOver
+
+checkDoneTerraforming : World -> World
+checkDoneTerraforming model =
   let
       bedrockCount =
         model.terrain
@@ -113,5 +116,13 @@ isDoneTerraforming model =
           |> List.length
 
   in
-      not (bedrockCount > 20)
+    if not (bedrockCount > 20) then
+      { model | terraformOver = True
+              , nonDirtTerrain = model.terrain
+                             |> Dict.toList
+                             |> List.filter (\(pt,terrain) -> not (terrain == Models.Terrain.dirt))
+                             |> Dict.fromList
+                             |> Debug.log "setting non dirt terrain"
+                             }
+    else model
       --|> Debug.log "done terraform?"

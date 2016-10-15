@@ -6,16 +6,31 @@ import Body exposing (Body)
 import Mouse
 
 -- could push these into 'settings' param on viewport?
+friction : Float
 friction = 0.35
+
+panFactor : Float
 panFactor = 2.25
+
+maxPanSpeed : Float
 maxPanSpeed = 4.0
 
-minZoom = 2
+minZoom : Float
+minZoom = 1
+
+maxZoom : Float
 maxZoom = 8
+
+zoomFriction : Float
 zoomFriction = 0.04
+
+maxZoomVelocity : Float
 maxZoomVelocity = 0.8
+
+zoomFactor : Float
 zoomFactor = 0.125
 
+sign : Float -> Float
 sign x = if x < 0 then -1 else if x > 0 then 1 else 0
 
 type alias Viewport = { dimensions : ( Int, Int )

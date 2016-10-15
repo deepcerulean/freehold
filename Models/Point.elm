@@ -1,4 +1,6 @@
-module Models.Point exposing (Point, Direction(..), grid, adjacent, slide, delta, towards, distance, allDirections, code, invertDirection)
+module Models.Point exposing (Point, Direction(..), grid, adjacent, slide, delta, towards, distance, allDirections, code, invertDirection, unitLength, asFloat, asInt)
+
+import Extend.List exposing (andThen)
 
 type Direction = North
                | South
@@ -21,16 +23,31 @@ allDirections =
   , Southwest
   ]
 
+unitLength : Direction -> Float
+unitLength dir =
+  case dir of
+    North -> 1.0
+    South -> 1.0
+    East -> 1.0
+    West -> 1.0
+    Northeast -> sqrt 2
+    Northwest -> sqrt 2
+    Southwest -> sqrt 2
+    Southeast -> sqrt 2
+
 type alias Point number = (number, number)
 
 grid : Int -> Int -> List (Point Int)
 grid width height =
-  let
-    gridPoint = \y ->
-      List.map (\x -> (x,y)) [0..((width)-1)]
-  in
-    [0..((height)-1)]
-    |> List.concatMap gridPoint
+   [0..(width-1)] `andThen` \x ->
+   [0..(height-1)] `andThen` \y ->
+   [(x,y)]
+  --let
+  --  gridPoint = \y ->
+  --    List.map (\x -> (x,y)) [0..((width)-1)]
+  --in
+  --  [0..((height)-1)]
+  --  |> List.concatMap gridPoint
 
 distance : Point Float -> Point Float -> Float
 distance (ax,ay) (bx,by) =
@@ -134,3 +151,11 @@ invertDirection direction =
     Northwest -> Southeast
     Southwest -> Northeast
     Southeast -> Northwest
+
+asFloat : Point Int -> Point Float
+asFloat (x,y) =
+  (toFloat x, toFloat y)
+
+asInt : Point Float -> Point Int
+asInt (x,y) =
+  (round x, round y)

@@ -1,7 +1,9 @@
 module Views.Person exposing (view)
 
 import Models.Person exposing (Person)
+import Models.Map
 import Extend.List
+--import Algorithms.Path
 
 import Graphics
 import Svg
@@ -41,8 +43,19 @@ view model =
           []
         Just ctx ->
           ctx.visited
+            --|> Debug.log "visited in view"
             |> Dict.keys
-            |> List.map (\(x',y') -> Graphics.circle 0.4 "rgba(160,240,160,0.3)" (0.5 + (toFloat x'), 0.5 + (toFloat y')))
+            |> List.map (\(x',y') ->
+              let
+                steps = --0
+                  case (ctx.visited |> Models.Map.at (x',y')) of
+                    Nothing ->
+                      0
+                    Just (n,_) ->
+                      n
+              in
+                Graphics.circle 0.4 ("rgba(" ++ toString (80+round (steps*8)) ++ ",160,160,0.5)") (0.5 + (toFloat x'), 0.5 + (toFloat y'))
+            )
 
   in
       [ Graphics.circle (0.5) "rgb(80,80,240)" (x,y)

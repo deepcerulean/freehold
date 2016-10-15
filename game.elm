@@ -22,6 +22,9 @@ worldSize = (120,80)
 framerate : Float
 framerate = 60
 
+defaultSpeed : Int
+defaultSpeed = 2
+
 -- type
 type Msg = ResizeWindow (Int, Int)
          | Tick Time
@@ -59,7 +62,7 @@ init dims =
     , hover = Nothing
     , select = Nothing
     , viewport = Viewport.init dims
-    , speed = 1
+    , speed = defaultSpeed
     },
     Task.perform (\_ -> NoOp) sizeToMsg Window.size
   )

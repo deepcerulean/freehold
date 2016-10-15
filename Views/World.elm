@@ -3,7 +3,7 @@ module Views.World exposing (view)
 import Models.Terrain
 import Models.Point exposing (Point)
 import Models.World exposing (World)
-import Views.Terrain
+--import Views.Terrain
 import Views.Person
 import Graphics exposing (rect, outline)
 
@@ -29,27 +29,27 @@ view hoverAt selectAt model =
         Just pos ->
           [ outline pos "rgba(255,255,255,0.8)" ]
 
-    bg =
-      [ Graphics.quad (0,0) model.dimensions (Models.Terrain.color Models.Terrain.dirt) ]
 
     people =
       model.people
         |> List.concatMap (Views.Person.view)
 
   in
-    bg ++
     (model |> terrainView)
     ++ people
     ++ hover
     ++ select
 
 
+-- really a cartogram view maybe?? which should prob *include* bg
 terrainView : World -> List (Svg.Svg a)
 terrainView model =
-  model.terrain
+  let
+    bg =
+      [ Graphics.quad (0,0) model.dimensions (Models.Terrain.color Models.Terrain.dirt) ]
+  in bg ++
+  (model.nonDirtTerrain
   |> Dict.toList
-  |> List.concatMap (\(pt,terrain) ->
-    if terrain == Models.Terrain.dirt then [] else
-    [ terrain |> Views.Terrain.view pt ]
-  )
+  --|> List.filter (\(pt,terrain) -> not (terrain == Models.Terrain.dirt))
+  |> List.map (\(pt,terrain) -> Graphics.rect pt (Models.Terrain.color terrain)))
 

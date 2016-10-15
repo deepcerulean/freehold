@@ -3,6 +3,7 @@ module Models.Person exposing (Person, init, move, findPathTo, clearPath)
 import Algorithms.Path
 import Models.Point exposing (Point)
 import Body exposing (Body)
+import Set exposing (Set)
 
 type Activity = Idle
               | Walking
@@ -34,7 +35,7 @@ clearPath : Person -> Person
 clearPath model =
   model --{ model | path = [] }
 
-findPathTo : Point Int -> (Point Int -> Bool) -> Person -> Person
+findPathTo : Point Int -> Set (Point Int) -> Person -> Person
 findPathTo target blocked model =
   let
     (bx,by) =
@@ -42,8 +43,11 @@ findPathTo target blocked model =
 
     bodyPos =
       (round (bx - 0.5), round (by - 0.5))
+
+    isBlocked = \pt ->
+      Set.member pt blocked
   in
-    if (blocked target) || (blocked bodyPos) || (target == bodyPos) then
+    if (isBlocked target) || (isBlocked bodyPos) || (target == bodyPos) then
       model
     else
       case model.pathfinding of
@@ -79,15 +83,11 @@ findPaths model =
       else
         let
           context' = context
-            |> Algorithms.Path.findIncremental
+            |> Algorithms.Path.findIncremental 5
         in
           case context'.path of
             Nothing ->
               { model | pathfinding = Just context' }
-              --|> Debug.log "increment pathfinding..."
-              --{ model | pathfinding = Just (context') -- |> Algorithms.Path.findIncremental)
-              --        , path = []
-              --} |> Debug.log "start finding path..."
 
             Just path' ->
               { model | path = path'

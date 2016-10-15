@@ -1,4 +1,4 @@
-module Models.Map exposing (Map, Location, init, set, at, random)
+module Models.Map exposing (Map, Location, init, set, at, random, width, height)
 
 import Models.Point exposing (Point, grid)
 import Extend.List exposing (zip)
@@ -14,6 +14,26 @@ init : (Int, Int) -> (Location -> a) -> Map a
 init (width, height) inspect =
   grid width height
   |> List.foldr (set' inspect) Dict.empty
+
+width : Map a -> Int
+width model =
+  model
+    |> Dict.keys
+    |> List.sort
+    |> List.reverse
+    |> List.head
+    |> Maybe.withDefault (100,100)
+    |> fst
+
+height : Map a -> Int
+height model =
+  model
+    |> Dict.keys
+    |> List.sort
+    |> List.reverse
+    |> List.head
+    |> Maybe.withDefault (100,100)
+    |> snd
 
 set : a -> Location -> Map a -> Map a
 set a pt model =
