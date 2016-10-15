@@ -78,7 +78,7 @@ findIncremental context =
         let
           path =
             (constructPath (Dict.union visited frontier) source goal)
-              |> Debug.log "constructed path!!!"
+              --|> Debug.log "constructed path!!!"
         in
           { context | path = Just (List.reverse path) }
 
@@ -87,7 +87,7 @@ findIncremental context =
           { context | depth = context.depth - 1
                     , frontier = moves source
           }
-            |> Debug.log "frontier was empty, moving from source"
+            --|> Debug.log "frontier was empty, moving from source"
         else
           let
             (ox,oy) =
@@ -97,6 +97,11 @@ findIncremental context =
                (frontier
                 |> Dict.keys
                 |> List.sortBy (\(px,py) -> -(Models.Point.distance (toFloat ox,toFloat oy) (toFloat px, toFloat py)))
+                 -- so this ^^ is subtly 'wrong' -- we need to compute *path* distance so far, which i think does mean tracking depth per-cell?
+                 -- maybe we can get there by clever unions/folding but i'm not seeing it
+                 -- unfortunately not super-obvs how to do the path-distance comparison here even *if* it was available
+                 -- (which doesn't seem like it would be too bad)
+                -- todo fix this subtle pathfinding bug
                 |> List.map moves
                 |> List.foldl Dict.union Dict.empty
                 )

@@ -32,42 +32,35 @@ init (x,y) name age =
 
 clearPath : Person -> Person
 clearPath model =
-  { model | path = [] }
+  model --{ model | path = [] }
 
 findPathTo : Point Int -> (Point Int -> Bool) -> Person -> Person
 findPathTo target blocked model =
   let
     (bx,by) =
       model.body.position
-        --|> Debug.log "position"
 
     bodyPos =
       (round (bx - 0.5), round (by - 0.5))
   in
     if (blocked target) || (blocked bodyPos) || (target == bodyPos) then
-      { model | path = []
-              , pathfinding = Nothing
-      }
+      model
     else
       case model.pathfinding of
         Nothing ->
           case model.path |> List.reverse |> List.head of
             Nothing ->
-              --model
-              --if List.length model.path == 0 then
               { model | pathfinding = Just (Algorithms.Path.init target bodyPos blocked)
                       , path = []
               }
-              --  |> Debug.log "no path so overriding?"
 
             Just pt ->
-              if pt == target then
-                model -- we already have a path..?
+              if (pt == target) then
+                model
               else
                 { model | pathfinding = Just (Algorithms.Path.init target bodyPos blocked)
                         , path = []
                 }
-                |> Debug.log "overriding existing pathfinding context, new target identified"
 
         Just ctx ->
           model
@@ -91,7 +84,7 @@ findPaths model =
           case context'.path of
             Nothing ->
               { model | pathfinding = Just context' }
-              |> Debug.log "increment pathfinding..."
+              --|> Debug.log "increment pathfinding..."
               --{ model | pathfinding = Just (context') -- |> Algorithms.Path.findIncremental)
               --        , path = []
               --} |> Debug.log "start finding path..."

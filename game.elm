@@ -17,10 +17,10 @@ import Html.App as App
 
 -- global config
 worldSize : (Int,Int)
-worldSize = (60,80)
+worldSize = (120,80)
 
 framerate : Float
-framerate = 26
+framerate = 60
 
 -- type
 type Msg = ResizeWindow (Int, Int)
