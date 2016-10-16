@@ -16,7 +16,7 @@ maxPanSpeed : Float
 maxPanSpeed = 4.0
 
 minZoom : Float
-minZoom = 1
+minZoom = 2
 
 maxZoom : Float
 maxZoom = 8
@@ -42,7 +42,7 @@ type alias Viewport = { dimensions : ( Int, Int )
 
 init : (Int,Int) -> Viewport
 init (width,height) = { dimensions = (800,600)
-                      , scale = (minZoom+maxZoom)/2
+                      , scale = minZoom --(minZoom+maxZoom)/2
                       , worldDims = (width,height)
                       , zoomVelocity = 0
                       , offsetBody = Body.init (0,0) friction

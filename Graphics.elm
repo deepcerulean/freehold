@@ -1,10 +1,11 @@
-module Graphics exposing (view, rect, outline, quad, circle, text, line)
+module Graphics exposing (view, rect, outline, quad, circle, text, line, rect')
 
 import Models.Point exposing (Point)
 import Viewport exposing (Viewport)
 
 import Html exposing (Html)
 import Html.Attributes exposing (style)
+import VirtualDom
 
 import Svg exposing (Svg, svg, rect, g, text', font)
 import Svg.Attributes exposing (viewBox, x, y, fontSize, textAnchor, fill, stroke, strokeWidth, width, height, preserveAspectRatio, transform, cx, cy, r, fontFamily, fontWeight, x1, y1, x2, y2)
@@ -54,6 +55,15 @@ rect (x',y') color =
        , height "1.001"
        , fill color
        ] []
+
+rect' : Point number -> String -> List (VirtualDom.Node msg) -> Svg msg
+rect' (x',y') color contents =
+  Svg.rect [ x (toString x')
+       , y (toString y')
+       , width "1.001"
+       , height "1.001"
+       , fill color
+       ] contents
 
 circle : Float -> String -> Point Float -> Svg msg
 circle radius color (x',y') =

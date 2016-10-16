@@ -130,7 +130,9 @@ extendFrontier context =
     pick =
       frontier
       |> Dict.toList
-      |> List.sortBy (\(pt,(n,dir)) -> n/2 + ((Models.Point.distance (Models.Point.asFloat pt) (Models.Point.asFloat dest))/2)) -- + ((Models.Point.distance (Models.Point.asFloat pt) (Models.Point.asFloat source))/2))
+      |> List.sortBy (\(pt,(n,dir)) ->
+        Models.Point.distance (Models.Point.asFloat pt) (Models.Point.asFloat dest)
+      )
       |> List.head
       |> Maybe.withDefault ((-1,-1),(-1,Northeast))
 

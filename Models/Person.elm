@@ -1,16 +1,14 @@
-module Models.Person exposing (Person, init, move, findPathTo, clearPath)
+module Models.Person exposing (Person, init, move, findPathTo)
 
 import Algorithms.Path
 import Models.Point exposing (Point)
 import Body exposing (Body)
 import Set exposing (Set)
 
-type Activity = Idle
-              | Walking
-              | Pathfinding
 
 -- type
 type alias Person = { name : String
+                    , id : Int
                     , age : Int
                     , body : Body
                     , goal : Maybe (Point Int)
@@ -20,9 +18,10 @@ type alias Person = { name : String
                     }
 
 -- init
-init : Point Int -> String -> Int -> Person
-init (x,y) name age =
-  { name = name
+init : Int -> Point Int -> String -> Int -> Person
+init id (x,y) name age =
+  { id = id
+  , name = name
   , age = age
   , body = Body.init (0.5 + (toFloat x), 0.5 + (toFloat y)) 0
   , goal = Nothing
@@ -30,10 +29,6 @@ init (x,y) name age =
   , pathfinding = Nothing
   , ticks = 0
   }
-
-clearPath : Person -> Person
-clearPath model =
-  model --{ model | path = [] }
 
 findPathTo : Point Int -> Set (Point Int) -> Person -> Person
 findPathTo target blocked model =
@@ -109,6 +104,22 @@ move model =
     |> findPaths
     |> followPath
     |> followGoal
+    |> readScript
+
+readScript : Person -> Person
+readScript model =
+  model
+  --case model.script |> List.head of
+  --  Just activity' ->
+  --    model |> performActivity activity'
+
+  --  Nothing ->
+  --    model
+
+--performActivity : Activity -> Person -> Person
+--performActivity activity' model =
+--
+--  { model | activity = Just activity' }
 
 followGoal : Person -> Person
 followGoal model =

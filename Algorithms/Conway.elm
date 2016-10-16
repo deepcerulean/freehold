@@ -10,6 +10,13 @@ type alias Life = { starvation : Int
                   , birth : List Int
                   }
 
+type alias RegionState = { alive : Int
+                         , dead : Int
+                         }
+
+type alias TransitionTable = Dict RegionState Bool
+
+
 evolve : Life -> Int -> (a,a) -> Map a -> Map a
 evolve life n (alive,dead) model =
   if n < 1 then
@@ -33,7 +40,7 @@ apply life (alive,dead) model =
   in
     remove |> List.foldr (set dead) model'
 
-matches : Point -> a -> Map a -> Bool
+matches : Point Int -> a -> Map a -> Bool
 matches pt match model =
   case (model |> at pt) of
     Nothing ->
@@ -42,14 +49,14 @@ matches pt match model =
     Just a' ->
       a' == match
 
-neighborCount : Point -> a -> Map a -> Int
+neighborCount : Point Int -> a -> Map a -> Int
 neighborCount pt alive model =
   pt
   |> Models.Point.adjacent
   |> List.filter (\pt -> model |> matches pt alive)
   |> List.length
 
-applyAt : Map a -> Life -> (a,a) -> Point -> (List Point, List Point) -> (List Point, List Point)
+applyAt : Map a -> Life -> (a,a) -> Point Int -> (List (Point Int), List (Point Int)) -> (List (Point Int), List (Point Int))
 applyAt model {starvation,loneliness,birth} (alive,dead) pt (add, remove) =
   let
     neighbors =

@@ -17,13 +17,13 @@ import Html.App as App
 
 -- global config
 worldSize : (Int,Int)
-worldSize = (120,80)
+worldSize = (200,120)
 
 framerate : Float
 framerate = 60
 
 defaultSpeed : Int
-defaultSpeed = 2
+defaultSpeed = 1
 
 -- type
 type Msg = ResizeWindow (Int, Int)
@@ -41,6 +41,7 @@ type alias Game = { world : World
                   , select : Maybe (Int, Int)
                   , viewport : Viewport
                   , speed : Int
+                  , ticks : Int
                   }
 
 -- MAIN
@@ -63,6 +64,7 @@ init dims =
     , select = Nothing
     , viewport = Viewport.init dims
     , speed = defaultSpeed
+    , ticks = 0
     },
     Task.perform (\_ -> NoOp) sizeToMsg Window.size
   )
@@ -138,8 +140,9 @@ resize dims model =
 tick : Game -> (Game, Cmd Msg)
 tick model =
   { model | viewport = model.viewport |> Viewport.animate
+          , ticks = model.ticks + 1
   }
-  |> evolve model.speed
+  |> evolve (if model.ticks % 2 == 0 then model.speed else 0) --/2)
   |> terraform
   |> generate model.world.dimensions
 
@@ -157,6 +160,7 @@ generate : (Int,Int) -> Game -> (Game, Cmd Msg)
 generate (w,h) model =
   if model.setup then (model, Cmd.none) else
     ({ model | setup = True }, Random.generate NewWorld (Models.World.generate (w,h)))
+    |> Debug.log "GENERATING NEW WORLD"
 
 terraform : Game -> Game
 terraform model =

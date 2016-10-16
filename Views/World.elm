@@ -5,6 +5,7 @@ import Models.Point exposing (Point)
 import Models.World exposing (World)
 --import Views.Terrain
 import Views.Person
+import Views.Thing
 import Graphics exposing (rect, outline)
 
 import Dict
@@ -34,14 +35,19 @@ view hoverAt selectAt model =
       model.people
         |> List.concatMap (Views.Person.view)
 
+    things =
+      model.things
+        |> List.concatMap (Views.Thing.view model.steps)
+
   in
     (model |> terrainView)
     ++ people
+    ++ things
     ++ hover
     ++ select
 
 
--- really a cartogram view maybe?? which should prob *include* bg
+-- todo really a cartogram view maybe?? which should prob *include* bg
 terrainView : World -> List (Svg.Svg a)
 terrainView model =
   let
@@ -50,6 +56,4 @@ terrainView model =
   in bg ++
   (model.nonDirtTerrain
   |> Dict.toList
-  --|> List.filter (\(pt,terrain) -> not (terrain == Models.Terrain.dirt))
   |> List.map (\(pt,terrain) -> Graphics.rect pt (Models.Terrain.color terrain)))
-
