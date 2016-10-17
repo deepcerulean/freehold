@@ -106,7 +106,6 @@ findIncremental n context =
         let
           path =
             (constructPath (Dict.union visited frontier) source goal)
-              --|> Debug.log "constructed path!!!"
         in
           { context | path = Just (List.reverse path) }
 
@@ -195,4 +194,3 @@ constructPath visited source destination =
 
                Nothing ->
                  []
-                   |> Debug.log "construct path could not join up a path!!"

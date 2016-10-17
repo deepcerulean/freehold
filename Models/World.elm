@@ -54,7 +54,8 @@ generate (width,height) =
                , Models.Person.init 5 ( width//2, 1 + height // 2) "Oryn" 24
                ]
     , things = [ Models.Thing.campfire 1 ( width//2 , height // 2 )
-               , Models.Thing.fire 2 ( width//2 , height // 2 )
+               , Models.Thing.fire 2 ( 3 + (width//2) , 4 + (height // 2) )
+               , Models.Thing.wood 3 ( (width//2) - 3 , 1 + (height // 2) )
                ]
     , terrain = terrain'
     , dimensions = (width,height)
@@ -127,7 +128,7 @@ terraform n model =
              , loneliness = 1
              , birth = [2..8]
              }
-        |> Debug.log "terraform params"
+        |> Debug.log "terraform"
     in
       { model | terrain = model.terrain
       |> Algorithms.Conway.evolve life 1 (water,bedrock)
@@ -135,8 +136,8 @@ terraform n model =
       |> Algorithms.Conway.evolve life 1 (sand,bedrock)
       |> Algorithms.Conway.evolve life 1 (dirt,bedrock)
       }
-      |> terraform (n-1)
       |> checkDoneTerraforming
+      |> terraform (n-1)
 
 isDoneTerraforming : World -> Bool
 isDoneTerraforming model =
@@ -158,7 +159,6 @@ checkDoneTerraforming model =
     if not (bedrockCount > 20) then
       { model' | terraformOver = True }
     else model'
-      --|> Debug.log "done terraform?"
 
 updateNonDirtTerrain : World -> World
 updateNonDirtTerrain model =
@@ -166,5 +166,4 @@ updateNonDirtTerrain model =
                              |> Dict.toList
                              |> List.filter (\(pt,terrain) -> not (terrain == Models.Terrain.dirt))
                              |> Dict.fromList
-                             |> Debug.log "setting non dirt terrain"
                              }

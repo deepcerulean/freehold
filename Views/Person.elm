@@ -43,7 +43,6 @@ view model =
           []
         Just ctx ->
           ctx.visited
-            --|> Debug.log "visited in view"
             |> Dict.keys
             |> List.map (\(x',y') ->
               let

@@ -142,7 +142,7 @@ tick model =
   { model | viewport = model.viewport |> Viewport.animate
           , ticks = model.ticks + 1
   }
-  |> evolve (if model.ticks % 2 == 0 then model.speed else 0) --/2)
+  |> evolve model.speed
   |> terraform
   |> generate model.world.dimensions
 

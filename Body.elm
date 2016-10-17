@@ -42,7 +42,6 @@ applyImpulse : (Float,Float) -> Body -> Body
 applyImpulse (dx,dy) model =
   let (vx,vy) = model.velocity in
   { model | velocity = (vx+dx, vy+dy) }
-  --|> Debug.log "applyImpulse"
 
 applyFriction : Body -> Body
 applyFriction model =
