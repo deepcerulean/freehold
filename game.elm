@@ -1,7 +1,8 @@
 import Graphics
 import Models.Point exposing (Point, Direction(..))
 import Models.World exposing (World)
-import Support.Wheel exposing (Delta)
+import Models.Map
+--import Support.Wheel exposing (Delta)
 import Views.World
 import Viewport exposing (Viewport)
 
@@ -17,7 +18,7 @@ import Html.App as App
 
 -- global config
 worldSize : (Int,Int)
-worldSize = (200,120)
+worldSize = (100,80)
 
 framerate : Float
 framerate = 60
@@ -154,7 +155,7 @@ hoverAt pos model =
 clickAt : Mouse.Position -> Game -> Game
 clickAt pos model =
   let pos' = model.viewport |> Viewport.find pos in
-      { model | select = Just pos' }
+      { model | select = Just (pos' |> Debug.log "CLICKKK") }
 
 generate : (Int,Int) -> Game -> (Game, Cmd Msg)
 generate (w,h) model =
@@ -182,9 +183,9 @@ subscriptions : Game -> Sub Msg
 subscriptions model =
   Sub.batch [ Window.resizes sizeToMsg
             , Time.every (Time.millisecond * (1000/framerate)) Tick
-            , Mouse.moves MoveMouse
             , Mouse.clicks ClickMouse
-            , Support.Wheel.xDeltas Zoom
+            --, Mouse.moves MoveMouse
+            --, Support.Wheel.xDeltas Zoom
             , Keyboard.presses Keypress
             ]
 
@@ -203,8 +204,14 @@ view model =
       model.viewport |> Viewport.offset
 
     infoView =
-        [ Graphics.text (10,4) "white" 2.0 ("hover at " ++ (toString model.hover))
-        ]
+        case model.hover of
+          Just hover ->
+            let message = (toString (Models.Map.at hover model.world.terrain) ++ " at " ++ (toString model.hover)) in
+            [ Graphics.text (10,4) "white" 2.0 message
+            ]
+
+          Nothing ->
+            []
 
   in
     Graphics.view model.viewport worldView infoView

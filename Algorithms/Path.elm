@@ -1,4 +1,4 @@
-module Algorithms.Path exposing (Context, SearchMap, init, seek, find, findIncremental, movesFrom)
+module Algorithms.Path exposing (Context, SearchMap, init, seek, find, findIncremental, movesFrom, manhattanDistance)
 
 import Models.Point exposing (Point, Direction(..))
 import Models.Map exposing (Map, Location)
@@ -6,10 +6,9 @@ import Models.Map exposing (Map, Location)
 import Dict exposing (Dict)
 import Set exposing (Set)
 
-
 type alias Path = Maybe (List Location)
 type alias SearchData = (Float, Direction)
-type alias SearchMap = Map SearchData --Direction
+type alias SearchMap = Map SearchData
 
 type alias Context = { visited : SearchMap
                      , frontier : SearchMap
@@ -22,40 +21,38 @@ type alias Context = { visited : SearchMap
                      }
 
 -- todo:
+--   [ ] search at most 2 paths at once (nav manager)
 --   [ ] don't search off the map
 --   [ ] check zones before searching
---   [ ] hierarchical 'region' analysis for speeding up long paths!
-
--- it's really a graph...
-
---type alias Region = { position : Location
---                    , width : Int
---                    , height : Int
---                    , connections : List Connection
---                    }
--- type alias Connection = { adjacentRegion : Region, location : Location }
---
---type alias Analysis = { zones: List (Set Location)
---                      , regions: List (Region)
---                      }
+--   [ ] hierarchical analysis for speeding up long paths
+--   [ ] nav mesh?? smoothing??
 
 maxDepth : Int
-maxDepth = 10000 -- no more than 10k cells searched...
-                 -- we may need hierarchical srch!!
-                 -- and island/continent is still a prob too, at least a quick 'zones' analysis
+maxDepth =
+  10000
 
-init : Location -> Location -> Set Location -> Context --(Location -> Bool) -> Context
+init : Location -> Location -> Set Location -> Context
 init dst src blocked' =
     { visited = Dict.insert src (-1,Northeast) Dict.empty
     , frontier = Dict.empty
     , source = src
     , dest = dst
-    --, predicate = (\pt -> pt == dst)
     , moves = movesFrom blocked'
     , depth = maxDepth
     , blocked = blocked'
     , path = Nothing
     }
+
+manhattanDistance : Context -> Int
+manhattanDistance model =
+  let
+    (ax,ay) =
+      model.source
+
+    (bx,by) =
+      model.dest
+  in
+    abs (ay - by) + abs (ax - bx)
 
 seek : Location -> Location -> Set Location -> (List Location)
 seek dst src blocked =
@@ -65,9 +62,10 @@ seek dst src blocked =
 
 movesFrom : Set Location -> Float -> Location -> SearchMap
 movesFrom blocked steps point =
+  let dirToEntry = \direction -> (Models.Point.slide direction point, (steps + (Models.Point.unitLength direction), direction))
+  in
   Models.Point.allDirections
-    |> List.map (\direction ->
-      (Models.Point.slide direction point, (steps + (Models.Point.unitLength direction), direction)))
+    |> List.map dirToEntry
     |> List.filter (\(p,_) -> not (Set.member p blocked))
     |> Dict.fromList
 
@@ -90,7 +88,8 @@ find' context =
 
 findIncremental : Int -> Context -> Context
 findIncremental n context =
-  if n < 1 then context else
+  if not (context.path == Nothing) then context else
+  --if n < 1 then context else
   let
     {visited, frontier, source, dest, moves, depth} =
       context
@@ -117,7 +116,7 @@ findIncremental n context =
         else
           context
             |> extendFrontier --100
-            |> findIncremental (n-1)
+            --|> findIncremental (n-1)
 
 extendFrontier : Context -> Context
 extendFrontier context =
@@ -126,11 +125,16 @@ extendFrontier context =
     {visited,frontier,moves,dest, source} =
       context
 
+    (gx,gy) = dest
+
     pick =
       frontier
       |> Dict.toList
-      |> List.sortBy (\(pt,(n,dir)) ->
-        Models.Point.distance (Models.Point.asFloat pt) (Models.Point.asFloat dest)
+      |> List.sortBy (\((x,y),(n,dir)) ->
+        (toFloat ((y - gy)^2 + (x - gx)^2)) + n
+        --n +
+        --(Models.Point.distance (Models.Point.asFloat pt) (Models.Point.asFloat dest)) -- +
+        --(Models.Point.distance (Models.Point.asFloat source) (Models.Point.asFloat pt))
       )
       |> List.head
       |> Maybe.withDefault ((-1,-1),(-1,Northeast))

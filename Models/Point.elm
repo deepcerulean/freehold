@@ -1,6 +1,22 @@
-module Models.Point exposing (Point, Direction(..), grid, adjacent, slide, delta, towards, distance, allDirections, code, invertDirection, unitLength, asFloat, asInt)
+module Models.Point exposing (Point
+                             , Direction(..)
+                             , grid
+                             , adjacent
+                             , nearby
+                             , slide
+                             , delta
+                             , towards
+                             , distance
+                             , allDirections
+                             , code
+                             , invertDirection
+                             , unitLength
+                             , asFloat
+                             , asInt
+                             )
 
 import Extend.List exposing (andThen)
+import Set
 
 type Direction = North
                | South
@@ -42,12 +58,6 @@ grid width height =
    [0..(width-1)] `andThen` \x ->
    [0..(height-1)] `andThen` \y ->
    [(x,y)]
-  --let
-  --  gridPoint = \y ->
-  --    List.map (\x -> (x,y)) [0..((width)-1)]
-  --in
-  --  [0..((height)-1)]
-  --  |> List.concatMap gridPoint
 
 distance : Point Float -> Point Float -> Float
 distance (ax,ay) (bx,by) =
@@ -72,6 +82,19 @@ adjacent : Point number -> List (Point number)
 adjacent pt =
   allDirections
   |> List.map (\dir -> slide dir pt)
+
+nearby : Int -> Point number -> List (Point number)
+nearby dist pt =
+  if dist < 1 then [] else
+  nearby' dist pt
+    |> Set.fromList
+    |> Set.toList
+
+nearby' : Int -> Point number -> List (Point number)
+nearby' dist pt =
+  if dist < 1 then [] else
+  let neighbors = adjacent pt in
+    neighbors ++ (List.concatMap (nearby' (dist-1)) neighbors)
 
 delta : Direction -> Point number
 delta dir =

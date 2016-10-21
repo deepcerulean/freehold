@@ -1,10 +1,9 @@
-module Models.Person exposing (Person, init, move, findPathTo)
+module Models.Person exposing (Person, init, move)
 
-import Algorithms.Path
+--import Algorithms.Path
 import Models.Point exposing (Point)
 import Body exposing (Body)
-import Set exposing (Set)
-
+import Models.Navigator exposing (Navigator)
 
 -- type
 type alias Person = { name : String
@@ -13,81 +12,24 @@ type alias Person = { name : String
                     , body : Body
                     , goal : Maybe (Point Int)
                     , path : List (Point Int)
-                    , pathfinding : Maybe (Algorithms.Path.Context)
                     , ticks : Int
                     }
 
 -- init
-init : Int -> Point Int -> String -> Int -> Person
-init id (x,y) name age =
+init : Int -> String -> Int -> Point Int -> Person
+init id name age (x,y) =
   { id = id
   , name = name
   , age = age
   , body = Body.init (0.5 + (toFloat x), 0.5 + (toFloat y)) 0
   , goal = Nothing
   , path = []
-  , pathfinding = Nothing
-  , ticks = 0
+  , ticks = id
   }
-
-findPathTo : Point Int -> Set (Point Int) -> Person -> Person
-findPathTo target blocked model =
-  let
-    (bx,by) =
-      model.body.position
-
-    bodyPos =
-      (round (bx - 0.5), round (by - 0.5))
-
-    isBlocked = \pt ->
-      Set.member pt blocked
-  in
-    if (isBlocked target) || (isBlocked bodyPos) || (target == bodyPos) then
-      model
-    else
-      case model.pathfinding of
-        Nothing ->
-          case model.path |> List.reverse |> List.head of
-            Nothing ->
-              { model | pathfinding = Just (Algorithms.Path.init target bodyPos blocked)
-                      , path = []
-              }
-
-            Just pt ->
-              if (pt == target) then
-                model
-              else
-                { model | pathfinding = Just (Algorithms.Path.init target bodyPos blocked)
-                        , path = []
-                }
-
-        Just ctx ->
-          model
 
 findPaths : Person -> Person
 findPaths model =
-  case model.pathfinding of
-    Nothing ->
-      model
-
-    Just context ->
-      if context.depth < 0 then
-        { model | path = []
-                , pathfinding = Nothing
-        }
-      else
-        let
-          context' = context
-            |> Algorithms.Path.findIncremental 5
-        in
-          case context'.path of
-            Nothing ->
-              { model | pathfinding = Just context' }
-
-            Just path' ->
-              { model | path = path'
-                      , pathfinding = Nothing
-              }
+  model
 
 setGoal : Point Int -> Person -> Person
 setGoal pt model =
@@ -97,29 +39,39 @@ removeGoal : Person -> Person
 removeGoal model =
   { model | goal = Nothing }
 
-move : Person -> Person
-move model =
+move : Navigator -> Person -> Person
+move nav model =
   { model | ticks = model.ticks + 1 }
+    |> checkPath nav
     |> updateBody
-    |> findPaths
     |> followPath
     |> followGoal
-    |> readScript
 
-readScript : Person -> Person
-readScript model =
-  model
-  --case model.script |> List.head of
-  --  Just activity' ->
-  --    model |> performActivity activity'
-
+checkPath : Navigator -> Person -> Person
+checkPath nav model =
+  if not (model.path == []) then model else
+  --case model.path |> List.reverse |> List.head of
   --  Nothing ->
   --    model
+  --  Just currentPathTarget ->
+  case nav |> Models.Navigator.pathFor model.id of
+    Nothing ->
+      model -- |> Debug.log ("No path available for person " ++ (toString model.id))
+    Just path' ->
+      case path' |> List.reverse |> List.head of
+        Nothing ->
+          model
 
---performActivity : Activity -> Person -> Person
---performActivity activity' model =
---
---  { model | activity = Just activity' }
+        Just pathTarget ->
+          if (model |> distanceTo pathTarget) < 1.35 then
+            model
+          else
+            { model | path = path' } --|> Debug.log ("Found path for " ++ (toString model.id))
+
+          --if model.path == [] then
+          --else model
+
+  -- if List.length model.path > 0 then model else
 
 followGoal : Person -> Person
 followGoal model =
@@ -137,7 +89,6 @@ followPath model =
     model
   else
     model
-      --|> advancePath
       |> pickGoalFromPath
       |> advancePathIfNeeded
 
@@ -146,6 +97,7 @@ clearGoalIfReached pt model =
   if (distanceTo pt model) < 0.1 then
     model
       |> removeGoal
+      --|> Debug.log "removed goal"
   else
     model
 
@@ -160,6 +112,7 @@ distanceTo (px,py) model =
 pickGoalFromPath : Person -> Person
 pickGoalFromPath model =
   { model | goal = model.path |> List.head }
+    --|> Debug.log "picking goal from path"
 
 advancePathIfNeeded : Person -> Person
 advancePathIfNeeded model =

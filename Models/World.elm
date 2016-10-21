@@ -8,6 +8,9 @@ import Models.Person exposing (Person, init)
 import Models.Point exposing (Point)
 import Models.Terrain exposing (water, dirt, rock, sand, bedrock)
 import Models.Thing exposing (Thing)
+import Models.Navigator exposing (Navigator)
+
+import Extend.List
 
 import Random exposing (Generator)
 import Dict
@@ -26,20 +29,25 @@ type alias World = { name : String
                    , nonDirtTerrain : Cartogram
                    , things : List Thing
                    , steps : Int
-                   --, viewModel : Maybe (Map Color)
+
+                   , gatheringSpot : Maybe (Point Int)
+
+                   , navigator : Navigator
                    }
 
 empty : (Int,Int) -> World
 empty dims =
+  let emptyMap = Models.Cartogram.empty dims in
   { name = "Nowhere"
   , people = []
-  , terrain = Models.Cartogram.empty dims
+  , terrain = emptyMap
   , dimensions = dims
   , terraformOver = False
-  , nonDirtTerrain = Models.Cartogram.empty dims
+  , nonDirtTerrain = emptyMap
   , things = []
   , steps = 0
-  --, viewModel = Nothing
+  , gatheringSpot = Nothing
+  , navigator = Models.Navigator.init (Set.empty)
   }
 
 generate : (Int,Int) -> Generator World
@@ -47,12 +55,7 @@ generate (width,height) =
   let mapmaker = (Models.Cartogram.generate (width,height)) in
   Random.map (\terrain' ->
     { name = "Nowhere"
-    , people = [ Models.Person.init 1 (1 + width//2, height//2) "Gorn" 25
-               , Models.Person.init 2 (2 + width//2, 2 + height // 2) "Sally" 24
-               , Models.Person.init 3 (1 + width//2, 1 + height // 2) "Bourne" 24
-               , Models.Person.init 4 (1 + width//2, 3 + height // 2) "Teela" 24
-               , Models.Person.init 5 ( width//2, 1 + height // 2) "Oryn" 24
-               ]
+    , people = []
     , things = [ Models.Thing.campfire 1 ( width//2 , height // 2 )
                , Models.Thing.fire 2 ( 3 + (width//2) , 4 + (height // 2) )
                , Models.Thing.wood 3 ( (width//2) - 3 , 1 + (height // 2) )
@@ -62,9 +65,38 @@ generate (width,height) =
     , terraformOver = False
     , nonDirtTerrain = Models.Cartogram.empty (width,height)
     , steps = 0
-    --, viewModel = Nothing
-    }
-    ) mapmaker
+    , gatheringSpot = Nothing
+    , navigator = Models.Navigator.init (Set.empty)
+    }) mapmaker
+
+populate : World -> World
+populate model =
+  let
+    initialPop =
+       20
+
+    (width,height) =
+      model.dimensions
+
+    positions =
+      model
+        |> findOpenSquaresNear initialPop ( width // 2, height // 2 )
+        --|> Debug.log "open squares!"
+
+    names =
+      [ "Gorn", "Sally", "Bourne", "Teela", "Oryn"
+      , "Crake", "Abel", "Lak", "Shi", "Ku"
+      , "Abram", "Ezek", "Karn", "Elrich", "Catherina"
+      , "Asa", "Kami", "Esh", "George", "Robert"
+      , "William", "Sarah", "Aaron", "Byron", "Camerel"
+      , "Dividua", "Elston", "Fahey", "Gomax", "Hagin"
+      , "Ian"
+      ]
+
+    people =
+      List.map3 (\id name pt -> Models.Person.init id name 25 pt) [0..initialPop] names positions
+  in
+  { model | people = people }
 
 isWithinDimensions : Point Int -> World -> Bool
 isWithinDimensions (x,y) model =
@@ -74,49 +106,66 @@ isWithinDimensions (x,y) model =
 step : Maybe (Point Int) -> Maybe (Point Int) -> World -> World
 step hover select model =
   { model | steps = model.steps + 1 }
-    |> peopleFollow select
+    |> gatherAt select
+    |> navigate
     |> peopleMove
 
-peopleFollow : Maybe (Point Int) -> World -> World
-peopleFollow pt model =
+navigate : World -> World
+navigate model =
+  { model | navigator = model.navigator |> Models.Navigator.iterate 16 }
+
+gatherAt : Maybe (Point Int) -> World -> World
+gatherAt pt model =
   case pt of
     Nothing ->
       model
+
     Just (x,y) ->
+      if (model.gatheringSpot == (Just (x,y))) then model else
       let
+          -- todo don't call this all day, it's $$$
         neighbors =
           model
-            |> findOpenSquaresNear (x,y) (model.people |> List.length)
+            |> findOpenSquaresNear (model.people |> List.length) (x,y)
 
-        blocked =
-          model.nonDirtTerrain
-            |> Dict.toList
-            |> List.map fst
-            |> Set.fromList
+        peopleAndSpots =
+          Extend.List.zip model.people neighbors
 
-        modify = \pt ->
-          Models.Person.findPathTo pt blocked
+        askDirections = \(person,pt) nav ->
+          let src = (Models.Point.asInt person.body.position) in
+          nav
+            |> Models.Navigator.askWay person.id src pt
+
+        nav' =
+          peopleAndSpots
+            |> List.foldr askDirections model.navigator
 
       in
-        { model | people = model.people
-                           |> List.map2 modify neighbors
+        { model | gatheringSpot = (Just (x,y))
+                , navigator = nav'
         }
 
-findOpenSquaresNear : Point Int -> Int -> World -> List (Point Int)
-findOpenSquaresNear (x,y) n model =
+findOpenSquaresNear : Int -> Point Int -> World -> List (Point Int)
+findOpenSquaresNear n (x,y) model =
   let
+    blocked =
+      model.nonDirtTerrain
+        |> Dict.toList
+        |> List.map fst
+        |> Set.fromList
+
     neighbors =
       (x,y)
-        |> Models.Point.adjacent
+        |> Models.Point.nearby 2
+        |> List.filter (\pt -> not (Set.member pt blocked))
+        |> List.take n
   in
     neighbors
-      |> List.take n
-
 
 peopleMove : World -> World
 peopleMove model =
   { model | people = model.people
-                       |> List.map (Models.Person.move)
+                       |> List.map (Models.Person.move model.navigator)
   }
 
 
@@ -128,7 +177,7 @@ terraform n model =
              , loneliness = 1
              , birth = [2..8]
              }
-        |> Debug.log "terraform"
+        --|> Debug.log "terraform"
     in
       { model | terrain = model.terrain
       |> Algorithms.Conway.evolve life 1 (water,bedrock)
@@ -157,13 +206,25 @@ checkDoneTerraforming model =
 
   in
     if not (bedrockCount > 20) then
-      { model' | terraformOver = True }
+      { model' | terraformOver = True } |> populate
     else model'
 
 updateNonDirtTerrain : World -> World
 updateNonDirtTerrain model =
-  { model | nonDirtTerrain = model.terrain
-                             |> Dict.toList
-                             |> List.filter (\(pt,terrain) -> not (terrain == Models.Terrain.dirt))
-                             |> Dict.fromList
-                             }
+  let
+    newNonDirt =
+      model.terrain
+        |> Dict.toList
+        |> List.filter (\(pt,terrain) -> not (terrain == Models.Terrain.dirt))
+
+    navigator =
+      model.navigator
+
+    navigator' =
+      { navigator | obstacles = newNonDirt |> List.map fst |> Set.fromList }
+  in
+  { model | nonDirtTerrain = newNonDirt |> Dict.fromList
+          , navigator = navigator'
+  }
+
+

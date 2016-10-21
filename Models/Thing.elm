@@ -5,8 +5,6 @@ import Models.Point exposing (Point)
 -- base 'material' categories (atomic objects/substances that can't be "split" further...)
 type Kind = Fire
           | Wood
-          --| Head
-          --| Body
 
 type alias Entity = { name : String
                     , id : Int
