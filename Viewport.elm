@@ -5,9 +5,10 @@ import Body exposing (Body)
 
 import Mouse
 
+-- more "global" config :(
 -- could push these into 'settings' param on viewport?
 friction : Float
-friction = 0.35
+friction = 0.34
 
 panFactor : Float
 panFactor = 2.25
@@ -16,7 +17,7 @@ maxPanSpeed : Float
 maxPanSpeed = 4.0
 
 minZoom : Float
-minZoom = 2
+minZoom = 1
 
 maxZoom : Float
 maxZoom = 8

@@ -52,7 +52,6 @@ pathFor callerId model =
 
       Just ctx ->
         ctx.path
-          --|> Debug.log ("Found path for caller " ++ (toString callerId))
 
 -- open requests, sorted by distance
 pathsByDistance : Navigator -> List (Int, Context)
@@ -60,19 +59,11 @@ pathsByDistance model =
   model.paths
     |> Dict.toList
     |> List.filter (\(_, ctx) -> (ctx.path) == Nothing)
-    |> List.sortBy (\(_, ctx) -> ctx |> Algorithms.Path.manhattanDistance)
+    |> List.sortBy (\(_, ctx) -> ctx.directDistance)
 
---workRemaining : Navigator -> Bool
---workRemaining model =
---  model.paths
---    |> Dict.toList
---    |> List.any (\(_, ctx) -> ctx.path == Nothing)
-
--- world will have to iterate -- we will choose to explore one path at a time
--- proximate goal is to iterate only longest AND shortest path
--- (two lanes)
-iterate : Int -> Navigator -> Navigator
-iterate n model =
+-- explore only longest AND shortest path (two lanes)
+iterate : Navigator -> Navigator
+iterate model =
   model
     |> iterateCaller (shortestPath model)
     |> iterateCaller (longestPath model)
@@ -96,7 +87,7 @@ iterateCaller caller model =
     Just (callerId,path) ->
       let
         path' =
-          path |> Algorithms.Path.findIncremental 1
+          path |> Algorithms.Path.findIncremental 10
 
         tail =
           Dict.remove callerId model.paths

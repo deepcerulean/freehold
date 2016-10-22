@@ -122,4 +122,3 @@ searchGridView ctx =
               n
       in
           Graphics.circle 0.4 ("rgba(" ++ toString (80+round (steps*8)) ++ ",160,160,0.5)") (0.5 + (toFloat x'), 0.5 + (toFloat y')))
-

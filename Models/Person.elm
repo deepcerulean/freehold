@@ -1,9 +1,11 @@
-module Models.Person exposing (Person, init, move)
+module Models.Person exposing (Person, init, move, clearPath, names)
 
 --import Algorithms.Path
 import Models.Point exposing (Point)
-import Body exposing (Body)
 import Models.Navigator exposing (Navigator)
+import Models.Script exposing (Script)
+
+import Body exposing (Body)
 
 -- type
 type alias Person = { name : String
@@ -13,19 +15,197 @@ type alias Person = { name : String
                     , goal : Maybe (Point Int)
                     , path : List (Point Int)
                     , ticks : Int
+                    , script : Script
                     }
+
+-- data
+names : List String
+names =
+  [ "Aaron"
+  , "Abel"
+  , "Abram"
+  , "Ace"
+  , "Alectavus"
+  , "Almentis"
+  , "Alpha"
+  , "Alzen"
+  , "Aman"
+  , "Anas"
+  , "Asa"
+  , "Baldrese"
+  , "Basiq"
+  , "Ben"
+  , "Benji"
+  , "Bernes"
+  , "Bourne"
+  , "Brene"
+  , "Bryan"
+  , "Bryor"
+  , "Byron"
+  , "Camerel"
+  , "Camillivie"
+  , "Carethanna"
+  , "Catherina"
+  , "Ceciley"
+  , "Chlon"
+  , "Clarah"
+  , "Clor"
+  , "Crake"
+  , "Crest"
+  , "Cynthrysta"
+  , "Dalliciel"
+  , "Deal"
+  , "Dividua"
+  , "Earlottie"
+  , "Eathe"
+  , "Edridia"
+  , "Ellwynardt"
+  , "Elmots"
+  , "Elph"
+  , "Elrich"
+  , "Elroseph"
+  , "Elston"
+  , "Englis"
+  , "Enrittie"
+  , "Ernell"
+  , "Esh"
+  , "Eulam"
+  , "Eunius"
+  , "Eustiago"
+  , "Evalen"
+  , "Exa"
+  , "Ezek"
+  , "Fahey"
+  , "Frazella"
+  , "Fredrie"
+  , "Gabetta"
+  , "Garz"
+  , "Gayloriam"
+  , "George"
+  , "Gise"
+  , "Gomax"
+  , "Gorn"
+  , "Gurtle"
+  , "Hagin"
+  , "Harlena"
+  , "Hosell"
+  , "Humphraine"
+  , "Ian"
+  , "Irencintasie"
+  , "Johannet"
+  , "Josellermina"
+  , "Jospert"
+  , "Julia"
+  , "Kami"
+  , "Karn"
+  , "Katha"
+  , "Kelle"
+  , "Kryn"
+  , "Ku"
+  , "Lak"
+  , "Lecillie"
+  , "Lee"
+  , "Leilarey"
+  , "Lek"
+  , "Lemmuria"
+  , "Leonorah"
+  , "Leopolem"
+  , "Lesle"
+  , "Lith"
+  , "Lokh"
+  , "Lubertie"
+  , "Lucindallie"
+  , "Lyn"
+  , "Lyria"
+  , "Madlind"
+  , "Magan"
+  , "Magdalupert"
+  , "Maham"
+  , "Maiden"
+  , "Mandos"
+  , "Marianora"
+  , "Marittie"
+  , "Marle"
+  , "Marr"
+  , "Maurendo"
+  , "Merylora"
+  , "Michely"
+  , "Mois"
+  , "Mortha"
+  , "Natalomena"
+  , "Nevinyral"
+  , "Noom"
+  , "Norl"
+  , "Ocielda"
+  , "Ofilie"
+  , "Orince"
+  , "Orriedad"
+  , "Oryn"
+  , "Otter"
+  , "Parquet"
+  , "Philla"
+  , "Plura"
+  , "Polanne"
+  , "Purlena"
+  , "Queria"
+  , "Ren"
+  , "Renevenie"
+  , "Reswen"
+  , "Robert"
+  , "Romasa"
+  , "Rosly"
+  , "Sally"
+  , "Sarah"
+  , "Sardinium"
+  , "Saulia"
+  , "Seelena"
+  , "Selinda"
+  , "Sexter"
+  , "Shi"
+  , "Solarankie"
+  , "Sonner"
+  , "Suzannis"
+  , "Teela"
+  , "Tempia"
+  , "Tessica"
+  , "Thadelia"
+  , "Theophie"
+  , "Tildred"
+  , "Truvian"
+  , "Tyna"
+  , "Uxbridge"
+  , "Velviannie"
+  , "Velvor"
+  , "Verly"
+  , "Vernardie"
+  , "Volture"
+  , "Wall"
+  , "William"
+  , "Wyomicentina"
+  , "Xi"
+  , "Yin"
+  , "Yuma"
+  , "Zed"
+  , "Zilly"
+  , "Zzt"
+  ]
 
 -- init
 init : Int -> String -> Int -> Point Int -> Person
 init id name age (x,y) =
-  { id = id
-  , name = name
-  , age = age
-  , body = Body.init (0.5 + (toFloat x), 0.5 + (toFloat y)) 0
-  , goal = Nothing
-  , path = []
-  , ticks = id
-  }
+        { id = id
+        , name = name
+        , age = age
+        , body = Body.init (0.5 + (toFloat x), 0.5 + (toFloat y)) 0
+        , goal = Nothing
+        , path = []
+        , ticks = id
+        , script = Models.Script.init
+        }
+
+clearPath : Person -> Person
+clearPath model =
+  { model | path = [] }
 
 findPaths : Person -> Person
 findPaths model =
@@ -42,36 +222,27 @@ removeGoal model =
 move : Navigator -> Person -> Person
 move nav model =
   { model | ticks = model.ticks + 1 }
-    |> checkPath nav
-    |> updateBody
-    |> followPath
-    |> followGoal
+  |> checkPath nav
+  |> updateBody
+  |> followPath
+  |> followGoal
 
 checkPath : Navigator -> Person -> Person
 checkPath nav model =
   if not (model.path == []) then model else
-  --case model.path |> List.reverse |> List.head of
-  --  Nothing ->
-  --    model
-  --  Just currentPathTarget ->
-  case nav |> Models.Navigator.pathFor model.id of
-    Nothing ->
-      model -- |> Debug.log ("No path available for person " ++ (toString model.id))
-    Just path' ->
-      case path' |> List.reverse |> List.head of
-        Nothing ->
-          model
+    case nav |> Models.Navigator.pathFor model.id of
+      Nothing ->
+        model
+      Just path' ->
+        case path' |> List.reverse |> List.head of
+          Nothing ->
+            { model | path = [] }
 
-        Just pathTarget ->
-          if (model |> distanceTo pathTarget) < 1.35 then
-            model
-          else
-            { model | path = path' } --|> Debug.log ("Found path for " ++ (toString model.id))
-
-          --if model.path == [] then
-          --else model
-
-  -- if List.length model.path > 0 then model else
+          Just pathTarget ->
+            if (model |> distanceTo pathTarget) < 1.35 then
+              model
+            else
+              { model | path = path' }
 
 followGoal : Person -> Person
 followGoal model =
@@ -97,22 +268,20 @@ clearGoalIfReached pt model =
   if (distanceTo pt model) < 0.1 then
     model
       |> removeGoal
-      --|> Debug.log "removed goal"
   else
     model
 
 distanceTo : Point Int -> Person -> Float
 distanceTo (px,py) model =
   let
-    target =
-      (0.5 + (toFloat px), 0.5+(toFloat py))
+      target =
+        (0.5 + (toFloat px), 0.5+(toFloat py))
   in
-    Models.Point.distance target model.body.position
+      Models.Point.distance target model.body.position
 
 pickGoalFromPath : Person -> Person
 pickGoalFromPath model =
   { model | goal = model.path |> List.head }
-    --|> Debug.log "picking goal from path"
 
 advancePathIfNeeded : Person -> Person
 advancePathIfNeeded model =
@@ -184,12 +353,12 @@ follow (x,y) model =
           |> Body.halt
 
       else
-      --if (round (px-0.5), round (py-0.5)) == (x,y) then
-      --  model.body
-      --    |> Body.halt
-      --else
+        --if (round (px-0.5), round (py-0.5)) == (x,y) then
+        --  model.body
+        --    |> Body.halt
+        --else
         model.body
-        |> Body.applyImpulse (toFloat -(dx)*impulse, toFloat -(dy)*impulse)
-        |> Body.constrainVelocity maxImpulseX maxImpulseY
+          |> Body.applyImpulse (toFloat -(dx)*impulse, toFloat -(dy)*impulse)
+          |> Body.constrainVelocity maxImpulseX maxImpulseY
   in
       { model | body = body' }

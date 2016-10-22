@@ -18,10 +18,10 @@ import Html.App as App
 
 -- global config
 worldSize : (Int,Int)
-worldSize = (100,80)
+worldSize = (200,140)
 
 framerate : Float
-framerate = 60
+framerate = 120
 
 defaultSpeed : Int
 defaultSpeed = 1
@@ -161,7 +161,6 @@ generate : (Int,Int) -> Game -> (Game, Cmd Msg)
 generate (w,h) model =
   if model.setup then (model, Cmd.none) else
     ({ model | setup = True }, Random.generate NewWorld (Models.World.generate (w,h)))
-    |> Debug.log "GENERATING NEW WORLD"
 
 terraform : Game -> Game
 terraform model =

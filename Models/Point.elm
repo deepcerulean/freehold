@@ -11,12 +11,12 @@ module Models.Point exposing (Point
                              , code
                              , invertDirection
                              , unitLength
+                             , manhattanDistance
                              , asFloat
                              , asInt
                              )
 
 import Extend.List exposing (andThen)
-import Set
 
 type Direction = North
                | South
@@ -70,6 +70,18 @@ distance (ax,ay) (bx,by) =
   in
     sqrt(  (dx*dx) + (dy*dy)  )
 
+manhattanDistance : Point Int -> Point Int -> Int
+manhattanDistance (ax,ay) (bx,by) =
+  let
+    dx =
+      (ax - bx)
+
+    dy =
+      (ay - by)
+  in
+    abs dx + abs dy
+    --sqrt(  (dx*dx) + (dy*dy)  )
+
 translate : Point number -> Point number -> Point number
 translate (ax,ay) (bx,by) =
   (ax+bx, ay+by)
@@ -83,18 +95,12 @@ adjacent pt =
   allDirections
   |> List.map (\dir -> slide dir pt)
 
-nearby : Int -> Point number -> List (Point number)
+nearby : Int -> Point Int -> List (Point Int)
 nearby dist pt =
-  if dist < 1 then [] else
-  nearby' dist pt
-    |> Set.fromList
-    |> Set.toList
-
-nearby' : Int -> Point number -> List (Point number)
-nearby' dist pt =
-  if dist < 1 then [] else
-  let neighbors = adjacent pt in
-    neighbors ++ (List.concatMap (nearby' (dist-1)) neighbors)
+  grid (dist*2) (dist*2)
+    |> List.filter (\pt' -> ((manhattanDistance pt' (dist,dist)) < dist))
+    |> List.map (translate pt)
+    |> List.map (translate (-dist, -dist))
 
 delta : Direction -> Point number
 delta dir =

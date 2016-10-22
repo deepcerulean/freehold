@@ -1,4 +1,12 @@
-module Algorithms.Path exposing (Context, SearchMap, init, seek, find, findIncremental, movesFrom, manhattanDistance)
+module Algorithms.Path exposing (Context
+                                , SearchMap
+                                , init
+                                , seek
+                                , find
+                                , findIncremental
+                                , movesFrom
+                                --, manhattanDistance
+                                )
 
 import Models.Point exposing (Point, Direction(..))
 import Models.Map exposing (Map, Location)
@@ -18,6 +26,7 @@ type alias Context = { visited : SearchMap
                      , moves : (Float -> Location -> SearchMap)
                      , depth : Int
                      , path : Path
+                     , directDistance : Int
                      }
 
 -- todo:
@@ -41,18 +50,19 @@ init dst src blocked' =
     , depth = maxDepth
     , blocked = blocked'
     , path = Nothing
+    , directDistance = Models.Point.manhattanDistance src dst
     }
 
-manhattanDistance : Context -> Int
-manhattanDistance model =
-  let
-    (ax,ay) =
-      model.source
-
-    (bx,by) =
-      model.dest
-  in
-    abs (ay - by) + abs (ax - bx)
+--manhattanDistance : Context -> Int
+--manhattanDistance model =
+--  let
+--    (ax,ay) =
+--      model.source
+--
+--    (bx,by) =
+--      model.dest
+--  in
+--    abs (ay - by) + abs (ax - bx)
 
 seek : Location -> Location -> Set Location -> (List Location)
 seek dst src blocked =
@@ -131,7 +141,8 @@ extendFrontier context =
       frontier
       |> Dict.toList
       |> List.sortBy (\((x,y),(n,dir)) ->
-        (toFloat ((y - gy)^2 + (x - gx)^2)) + n
+        (toFloat ((y - gy)^2 + (x - gx)^2))
+        --+ n
         --n +
         --(Models.Point.distance (Models.Point.asFloat pt) (Models.Point.asFloat dest)) -- +
         --(Models.Point.distance (Models.Point.asFloat source) (Models.Point.asFloat pt))

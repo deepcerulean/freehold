@@ -73,7 +73,7 @@ populate : World -> World
 populate model =
   let
     initialPop =
-       20
+      150
 
     (width,height) =
       model.dimensions
@@ -81,17 +81,9 @@ populate model =
     positions =
       model
         |> findOpenSquaresNear initialPop ( width // 2, height // 2 )
-        --|> Debug.log "open squares!"
 
     names =
-      [ "Gorn", "Sally", "Bourne", "Teela", "Oryn"
-      , "Crake", "Abel", "Lak", "Shi", "Ku"
-      , "Abram", "Ezek", "Karn", "Elrich", "Catherina"
-      , "Asa", "Kami", "Esh", "George", "Robert"
-      , "William", "Sarah", "Aaron", "Byron", "Camerel"
-      , "Dividua", "Elston", "Fahey", "Gomax", "Hagin"
-      , "Ian"
-      ]
+      Models.Person.names
 
     people =
       List.map3 (\id name pt -> Models.Person.init id name 25 pt) [0..initialPop] names positions
@@ -109,10 +101,15 @@ step hover select model =
     |> gatherAt select
     |> navigate
     |> peopleMove
+    |> evaluateScripts
+
+evaluateScripts : World -> World
+evaluateScripts model =
+  model
 
 navigate : World -> World
 navigate model =
-  { model | navigator = model.navigator |> Models.Navigator.iterate 16 }
+  { model | navigator = model.navigator |> Models.Navigator.iterate }
 
 gatherAt : Maybe (Point Int) -> World -> World
 gatherAt pt model =
@@ -143,6 +140,7 @@ gatherAt pt model =
       in
         { model | gatheringSpot = (Just (x,y))
                 , navigator = nav'
+                , people = model.people |> List.map (Models.Person.clearPath)
         }
 
 findOpenSquaresNear : Int -> Point Int -> World -> List (Point Int)
@@ -156,8 +154,9 @@ findOpenSquaresNear n (x,y) model =
 
     neighbors =
       (x,y)
-        |> Models.Point.nearby 2
+        |> Models.Point.nearby (25) --+(round (sqrt (toFloat n))))
         |> List.filter (\pt -> not (Set.member pt blocked))
+        |> List.sortBy (\pt -> Models.Point.distance (Models.Point.asFloat (x,y)) (Models.Point.asFloat pt))
         |> List.take n
   in
     neighbors
@@ -177,7 +176,6 @@ terraform n model =
              , loneliness = 1
              , birth = [2..8]
              }
-        --|> Debug.log "terraform"
     in
       { model | terrain = model.terrain
       |> Algorithms.Conway.evolve life 1 (water,bedrock)
